@@ -1,6 +1,6 @@
 <h1 align="left">
   <br>
-  <a href="https://ne-dos.ru/"><img src="https://raw.githubusercontent.com/TheDayG0ne/ProjectArcade/master/.github/images/nedos-title.png" alt="NE-DOS" width="500"></a>
+  <a href="https://ne-dos.ru/"><img src="https://raw.githubusercontent.com/PRO100BYTE/ne-dos/master/.github/images/nedos-title.png" alt="NE-DOS" width="500"></a>
 </h1>
 
 ### С чего начать?
@@ -14,16 +14,16 @@
 
 ### Как создать и добавить команду?
 Для начала, создайте файл команды в `src/commands`. Это должен быть JavaScript файл. Например: `my-command.js` \
-Create your command logic:
+Создайте логику своей команды:
 ```javascript
 export default class MyCommand {
   execute(term, params, directory, setDirectory) {
-    // create your logic here
+    // здесь создайте логику команды
   }
 }
 ```
 
-Finally, register command in `src/registration.js`:
+И наконец, зарегистрируйте свою команду в файле `src/registration.js`:
 ```javascript
 // ...
 registeredCommands['mycmd'] = new MyCommand();
