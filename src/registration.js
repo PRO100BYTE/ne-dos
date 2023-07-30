@@ -23,6 +23,7 @@ import CommandCOMCommand from "./commands/System/command";
 import DeleteCommand from "./commands/Filesystem/rm";
 import DeleteDirectoryCommand from "./commands/Filesystem/rmdir";
 import StatusCommand from "./commands/System/status";
+import AboutmeCommand from "./commands/Utility/aboutme";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -58,6 +59,7 @@ export const registerAllCommands = () => {
   registeredCommands['ip'] = new IpCommand();
   registeredCommands['geoip'] = new GeoIpCommand();
   registeredCommands['geo'] = new GeoCommand();
+  registeredCommands['aboutme'] = new AboutmeCommand();
 
   // ECodeAPI
   registeredCommands['ecode'] = new ECodeAPICommand();
