@@ -3,6 +3,8 @@ import DirectoryCommand from "./commands/dir";
 import ChangeDirectoryCommand from "./commands/cd";
 import ClearCommand from "./commands/cls";
 import ExitCommand from "./commands/exit";
+import DateCommand from "./commands/date";
+import TimeCommand from "./commands/time";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -13,6 +15,8 @@ export const registerAllCommands = () => {
   registeredCommands['cd'] = new ChangeDirectoryCommand();
   registeredCommands['cls'] = new ClearCommand();
   registeredCommands['exit'] = new ExitCommand();
+  registeredCommands['date'] = new DateCommand();
+  registeredCommands['time'] = new TimeCommand();
 
   return registeredCommands;
 };
