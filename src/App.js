@@ -133,6 +133,7 @@ function App() {
         term.writeln(`Command execution finished with exit code 1`);
         term.writeln(e.message);
       }
+      await new Promise((a) => setTimeout(a, 1000));
       prompt(term);
     };
   }, []);

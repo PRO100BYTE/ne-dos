@@ -1,5 +1,5 @@
 export default class WeatherCommand {
-    execute(term, params, directory, setDirectory) {
+    async execute(term, params, directory, setDirectory) {
       if (params.length === 0) {
         term.writeln("weather: takes the name of a city as an argument and prints the current weather in it.");
         term.writeln("Example: weather Moscow");
@@ -8,7 +8,7 @@ export default class WeatherCommand {
 
       let city = params.join(" ");
       let url = `https://wttr.in/${city}?format=j1`;
-      
+
       fetch(url)
         .then(response => {
           if (response.ok) {
@@ -18,6 +18,7 @@ export default class WeatherCommand {
           }
         })
         .then(data => {
+          term.writeln("");
           term.writeln(`Temperature: ${data.current_condition[0].temp_C} °C`);
           term.writeln(`Feels like: ${data.current_condition[0].FeelsLikeC} °C`);
           term.writeln(`Humidity: ${data.current_condition[0].humidity} %`);
