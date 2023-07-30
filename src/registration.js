@@ -12,7 +12,8 @@ import EchoCommand from "./commands/echo";
 import IpCommand from "./commands/ip";
 import GeoIpCommand from "./commands/geoip";
 import WaitCommand from "./commands/wait";
-import HttpcatCommand from "./commands/cat";
+import HttpcatCommand from "./commands/httpcat";
+import HttpdogCommand from "./commands/httpdog";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -34,6 +35,7 @@ export const registerAllCommands = () => {
     registeredCommands['www'] = new WwwCommand();
     registeredCommands['confetti'] = new ConfettiCommand();
     registeredCommands['httpcat'] = new HttpcatCommand();
+    registeredCommands['httpdog'] = new HttpdogCommand();
   
     // Utility commands
     registeredCommands['echo'] = new EchoCommand();
