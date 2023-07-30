@@ -11,6 +11,7 @@ import ConfettiCommand from "./commands/confetti";
 import EchoCommand from "./commands/echo";
 import IpCommand from "./commands/ip";
 import GeoIpCommand from "./commands/geoip";
+import WaitCommand from "./commands/wait";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -29,6 +30,7 @@ export const registerAllCommands = () => {
   registeredCommands['echo'] = new EchoCommand();
   registeredCommands['ip'] = new IpCommand();
   registeredCommands['geoip'] = new GeoIpCommand();
+  registeredCommands['wait'] = new WaitCommand();
 
   return registeredCommands;
 };
