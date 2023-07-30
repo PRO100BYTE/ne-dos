@@ -4,6 +4,8 @@ import ChangeDirectoryCommand from "./commands/cd";
 import ClearCommand from "./commands/cls";
 import CreditsCommand from "./commands/credits";
 import GithubCommand from "./commands/github";
+import DateCommand from "./commands/date";
+import TimeCommand from "./commands/time";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -15,6 +17,8 @@ export const registerAllCommands = () => {
   registeredCommands['cls'] = new ClearCommand();
   registeredCommands['credits'] = new CreditsCommand();
   registeredCommands['github'] = new GithubCommand();
+  registeredCommands['date'] = new DateCommand();
+  registeredCommands['time'] = new TimeCommand();
 
   return registeredCommands;
 };
