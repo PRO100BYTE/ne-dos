@@ -18,4 +18,8 @@ export default class VersionCommand {
     term.writeln(`NE-DOS ${window['VERSION']}`);
     term.writeln('');
   }
+
+  description() {
+    return "Print current version";
+  }
 }

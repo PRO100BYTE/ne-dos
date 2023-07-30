@@ -10,4 +10,8 @@ export default class CreditsCommand {
         term.writeln('You can find more information in the GitHub repository:');
         term.writeln('https://github.com/PRO100BYTE/ne-dos or print "github"')
     }
-  }
+
+    description() {
+        return "Show this project authors";
+    }
+}

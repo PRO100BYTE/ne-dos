@@ -13,4 +13,8 @@ export default class WwwCommand {
             term.writeln("Incorrect URL");
         }
     }
-  }
+
+    description() {
+        return "Open new tab with given URL";
+    }
+}

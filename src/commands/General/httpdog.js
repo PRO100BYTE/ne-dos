@@ -7,4 +7,8 @@ export default class HttpdogCommand {
       term.writeln("");
       term.writeln("Opening a dog image for HTTP status " + status);
     }
+
+    description() {
+      return "Random http dog";
+    }
 }

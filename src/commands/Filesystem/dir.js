@@ -67,4 +67,8 @@ export default class DirectoryCommand {
       }
     }).replaceAll("\n", "\r\n"));
   }
+
+  description() {
+    return "List files in directory";
+  }
 }

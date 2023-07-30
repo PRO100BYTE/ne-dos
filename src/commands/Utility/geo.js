@@ -23,4 +23,8 @@ export default class GeoCommand {
             }
         });
     }
+
+    description() {
+        return "Show your geo by browser function";
+    }
 }

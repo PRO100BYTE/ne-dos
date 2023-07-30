@@ -8,4 +8,8 @@ export default class MakeDirectoryCommand {
     }
     window.fs.mkdirSync(path.resolve(directory, params[1]));
   }
+
+  description() {
+    return "Create directory";
+  }
 }

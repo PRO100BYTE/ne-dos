@@ -8,4 +8,13 @@ export default class IpCommand {
             term.writeln("Failed to fetch your IP address");
         }
     }
+
+    description() {
+        return "Show your IP";
+    }
+
+    help(term) {
+        term.writeln("  Usage:");
+        term.writeln("    ip [no arguments]");
+    }
 }

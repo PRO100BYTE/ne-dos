@@ -8,4 +8,8 @@ export default class GeoIpCommand {
             term.writeln("Failed to fetch your GeoIP information");
         }
     }
+
+    description() {
+        return "Show your geo by IP";
+    }
 }

@@ -7,4 +7,8 @@ export default class WaitCommand {
     let ms = parseInt(params[1]);
     await new Promise((a) => setTimeout(a, ms));
   }
+
+  description() {
+    return "Wait N milliseconds";
+  }
 }

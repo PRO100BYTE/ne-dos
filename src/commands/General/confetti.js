@@ -7,4 +7,8 @@ export default class ConfettiCommand {
             emojis: ['🌈', '⚡️', '💥', '✨', '💫', '🌸', '🖥', '💻'],
         });
     }
+
+    description() {
+        return "Just confetti";
+    }
   }

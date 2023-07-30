@@ -21,6 +21,16 @@ export default class MyCommand {
   execute(term, params, directory, setDirectory) {
     // здесь создайте логику команды
   }
+  
+  description() {
+    // Краткое описание Вашей команды (для команды help)
+    return "";
+  }
+  
+  help(term) {
+    // Действия программы при получении помощи
+    // Выполняется при 'help your_command'
+  }
 }
 ```
 
