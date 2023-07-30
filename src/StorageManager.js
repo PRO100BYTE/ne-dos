@@ -1,12 +1,5 @@
 export const FormatDirectory = (dir) => {
-  if (dir.includes("C:")) {
-    dir = dir.substring(2);
-  }
-  if (dir.startsWith("\\")) {
-    dir = dir.substring(1);
-  }
-
-  return dir;
+  return "C:" + dir.replaceAll("/", "\\");
 }
 
 export const GetFiles = (dir) => {

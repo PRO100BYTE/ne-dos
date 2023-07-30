@@ -14,6 +14,8 @@ import GeoIpCommand from "./commands/geoip";
 import WaitCommand from "./commands/wait";
 import HttpcatCommand from "./commands/httpcat";
 import HttpdogCommand from "./commands/httpdog";
+import MakeDirectoryCommand from "./commands/mkdir";
+import CatCommand from "./commands/cat";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -26,6 +28,8 @@ export const registerAllCommands = () => {
     // File system commands
     registeredCommands['dir'] = new DirectoryCommand();
     registeredCommands['cd'] = new ChangeDirectoryCommand();
+    registeredCommands['mkdir'] = new MakeDirectoryCommand();
+    registeredCommands['type'] = new CatCommand();
 
     // General commands
     registeredCommands['credits'] = new CreditsCommand();
