@@ -61,7 +61,7 @@ function App() {
 
     const date = new Date();
     const d = dateFormat(date, "ddd m-dd-yyyy");
-    const t = dateFormat(date, "h:MM:ss.L");
+    const t = dateFormat(date, "HH:MM:ss.L");
 
     term.writeln(`Current date is ${d}`);
     term.writeln(`Current time is ${t}`);
