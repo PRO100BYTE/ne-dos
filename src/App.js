@@ -6,6 +6,7 @@ import "xterm/css/xterm.css"
 import {FitAddon} from "xterm-addon-fit";
 import dateFormat from "dateformat";
 import {registerAllCommands} from "./registration";
+import {FormatDirectory} from "./StorageManager";
 
 const GlobalStyles = createGlobalStyle`
   html, body {
@@ -46,17 +47,17 @@ function App() {
     fitAddon.fit();
     // window.onresize = () => fitAddon.fit();
 
-    let currentDirectory = '\\';
+    let currentDirectory = '/';
     let command = '';
     const setCommand = v => command = v;
 
     const prompt = (term) => {
       setCommand("");
-      term.write(`\r\nC:${currentDirectory}>`);
+      term.write(`\r\n${FormatDirectory(currentDirectory)}>`);
     }
 
     term.prompt = () => {
-      term.write(`\r\nC:${currentDirectory}>`);
+      term.write(`\r\n${FormatDirectory(currentDirectory)}>`);
     };
 
     const date = new Date();
@@ -109,11 +110,12 @@ function App() {
         let app = registeredCommands[parts[0].toLowerCase()];
 
         if (app) {
-          await app.execute(term, parts, `C:${currentDirectory}`, (e) => currentDirectory = e);
+          await app.execute(term, parts, currentDirectory, (e) => currentDirectory = e);
         } else {
           term.writeln(`Bad command`);
         }
       } catch (e) {
+        console.error(e);
         term.writeln(`Command execution finished with exit code 1`);
         term.writeln(e.message);
       }
