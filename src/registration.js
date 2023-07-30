@@ -22,8 +22,11 @@ import RegisterCmdCommand from "./commands/System/registercommand";
 import CommandCOMCommand from "./commands/System/command";
 import DeleteCommand from "./commands/Filesystem/rm";
 import DeleteDirectoryCommand from "./commands/Filesystem/rmdir";
+import WeatherCommand from "./commands/Utility/weather";
 import StatusCommand from "./commands/System/status";
 import AboutmeCommand from "./commands/Utility/aboutme";
+import DownloadCommand from "./commands/Filesystem/download";
+import UploadCommand from "./commands/Filesystem/upload";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -43,6 +46,8 @@ export const registerAllCommands = () => {
   registeredCommands['type'] = new CatCommand();
   registeredCommands['del'] = new DeleteCommand();
   registeredCommands['rmdir'] = new DeleteDirectoryCommand();
+  registeredCommands['download'] = new DownloadCommand();
+  registeredCommands['upload'] = new UploadCommand();
 
   // General commands
   registeredCommands['credits'] = new CreditsCommand();
@@ -60,6 +65,7 @@ export const registerAllCommands = () => {
   registeredCommands['geoip'] = new GeoIpCommand();
   registeredCommands['geo'] = new GeoCommand();
   registeredCommands['aboutme'] = new AboutmeCommand();
+  registeredCommands['weather'] = new WeatherCommand();
 
   // ECodeAPI
   registeredCommands['ecode'] = new ECodeAPICommand();

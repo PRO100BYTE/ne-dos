@@ -61,3 +61,33 @@ const token = window.fs.readFileSync("/.config/ecode.token", "utf8");
 Реализована с помощью BrowserFS с использованием localstorage в качестве хранилища
 
 `window.fs` - пакет для работы с файловой системой, аналог обычному fs
+
+### Кастомные внешние команды
+С использованием `registercommand [URL]` можно временно регистрировать команды,
+исполняемые файлы которых расположены на другом сервере.
+
+Сам файл должен быть анонимной функцией, возвращающей объект с параметрами `cmd` и `func`
+
+Например:
+```javascript
+(() => {
+  return {
+    cmd: "test",
+    func: class TestCommand {
+      execute(term, args, dir, setDir) {
+        term.writeln("Command test registered! It works!")
+      }
+      description() {
+        return "Example third-party command";
+      }
+      help(term) {
+        term.writeln("help() of custom command!")
+      }
+    }
+  }
+})();
+```
+
+**ВАЖНО!** Сервер с JS-файлом должен отдавать заголовок `Access-Control-Allow-Origin` равный `https://ne-dos.ru` или `*`
+
+___Приветствуется___ помощь в создании маркетплейса таких кастомных команд. Маркетплейс должен быть доступен на GitHub (быть опенсурсом) и работать на основе XorekID в качестве системы аккаунтов. Подробнее к разработчикам: https://t.me/dpudnet https://t.me/thedayg0ne
