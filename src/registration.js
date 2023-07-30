@@ -11,14 +11,15 @@ import ConfettiCommand from "./commands/confetti";
 import EchoCommand from "./commands/echo";
 import IpCommand from "./commands/ip";
 import GeoIpCommand from "./commands/geoip";
+import WaitCommand from "./commands/wait";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
 
-  // Register commands here
     // System commands
     registeredCommands['ver'] = new VersionCommand();
     registeredCommands['cls'] = new ClearCommand();
+    registeredCommands['wait'] = new WaitCommand();
   
     // File system commands
     registeredCommands['dir'] = new DirectoryCommand();
