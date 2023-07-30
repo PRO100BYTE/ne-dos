@@ -4,6 +4,7 @@ export default class CatCommand {
       let status = statuses[Math.floor(Math.random() * statuses.length)];
       let url = "https://http.cat/" + status;
       window.open(url);
-      term.writeln("Opening a new tab with a cat image for HTTP status " + status);
+      term.writeln("");
+      term.writeln("Opening a cat image for HTTP status " + status);
     }
 }
