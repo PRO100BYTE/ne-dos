@@ -2,7 +2,7 @@ import JSConfetti from 'js-confetti'
 
 export default class ExitCommand {
     execute(term, params, directory, setDirectory) {
-            if (params[1] === "/confetti") {
+            if (params[1] === ".confetti") {
                 const jsConfetti = new JSConfetti() 
                 jsConfetti.addConfetti({ emojis: ['🖥', '💻'], emojiSize: 50, confettiNumber: 100, })
                 term.writeln(''); 
