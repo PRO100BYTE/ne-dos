@@ -1,4 +1,5 @@
 import path from "path-browserify";
+import {PrepareInternal} from "../StorageManager";
 
 export default class CatCommand {
   execute(term, params, directory, setDirectory) {
@@ -7,7 +8,7 @@ export default class CatCommand {
       term.writeln("No such file");
       return;
     }
-    param = param.replaceAll("\\", "/");
+    param = PrepareInternal(param);
 
     const dir = path.resolve(directory, param);
     if (!window.fs.existsSync(dir)) {
@@ -19,6 +20,6 @@ export default class CatCommand {
       return;
     }
 
-    term.writeln(window.fs.readSync(dir, 'utf8').replaceAll("\n", "\r\n"));
+    term.writeln(window.fs.readFileSync(dir, 'utf8').replaceAll("\n", "\r\n"));
   }
 }

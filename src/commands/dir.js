@@ -1,6 +1,7 @@
 import path from "path-browserify";
 import bytes from "bytes";
 import columnify from "columnify";
+import {PrepareInternal} from "../StorageManager";
 
 export default class DirectoryCommand {
   execute(term, params, directory, setDirectory) {
@@ -8,7 +9,16 @@ export default class DirectoryCommand {
     if (!param || param === "") {
       param = directory;
     } else {
-      param = param.replaceAll("\\", "/");
+      param = PrepareInternal(param);
+    }
+
+    if (!window.fs.existsSync(path.resolve(directory, param))) {
+      term.writeln("No such directory");
+      return;
+    }
+    if (!window.fs.statSync(path.resolve(directory, param)).isDirectory()) {
+      term.writeln("No such directory");
+      return;
     }
 
     const entries = window.fs.readdirSync(path.resolve(directory, param)).sort();
