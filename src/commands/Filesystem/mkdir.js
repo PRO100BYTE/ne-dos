@@ -1,4 +1,5 @@
 import path from "path-browserify";
+import {PrepareInternal} from "./StorageManager";
 
 export default class MakeDirectoryCommand {
   execute(term, params, directory, setDirectory) {
@@ -6,7 +7,9 @@ export default class MakeDirectoryCommand {
       term.writeln("Invalid directory name");
       return;
     }
-    window.fs.mkdirSync(path.resolve(directory, params[1]));
+    const target = path.resolve(directory, PrepareInternal(params[1]));
+    console.log(target);
+    window.fs.mkdirSync(target);
   }
 
   description() {
