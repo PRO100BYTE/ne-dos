@@ -1,6 +1,5 @@
 import path from "path-browserify";
-import {FormatDirectory, PrepareInternal} from "./StorageManager";
-import * as BrowserFS from "browserfs";
+import {FormatDirectory} from "./StorageManager";
 
 export default class UploadCommand {
   async execute(term, params, directory, setDirectory) {

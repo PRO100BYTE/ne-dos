@@ -1,6 +1,5 @@
 import path from "path-browserify";
 import {PrepareInternal} from "./StorageManager";
-import * as BrowserFS from "browserfs";
 
 export default class DownloadCommand {
   async execute(term, params, directory, setDirectory) {
