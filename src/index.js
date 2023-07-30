@@ -35,7 +35,7 @@ BrowserFS.configure({
     window.fs.writeFileSync(`/temp/host`, window.location.host);
     window.fs.writeFileSync(`/temp/language`, window.navigator.language);
     window.fs.writeFileSync(`/temp/user-agent`, window.navigator.userAgent);
-    window.fs.writeFileSync(`/temp/user-agent.json`, JSON.stringify(window.navigator.userAgent, null, 2));
+    window.fs.writeFileSync(`/temp/user-agent.json`, JSON.stringify(window.navigator.userAgentData, null, 2));
 
     try {
       const { downlink, effectiveType, rtt, saveData } = navigator.connection;
