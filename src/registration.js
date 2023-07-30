@@ -18,6 +18,7 @@ import MakeDirectoryCommand from "./commands/Filesystem/mkdir";
 import CatCommand from "./commands/Filesystem/cat";
 import ECodeAPICommand from "./commands/ECodeAPI/ecode";
 import GeoCommand from "./commands/Utility/geo";
+import RegisterCmdCommand from "./commands/System/registercommand";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -26,6 +27,7 @@ export const registerAllCommands = () => {
   registeredCommands['ver'] = new VersionCommand();
   registeredCommands['cls'] = new ClearCommand();
   registeredCommands['wait'] = new WaitCommand();
+  registeredCommands['registercommand'] = new RegisterCmdCommand();
 
   // Filesystem commands
   registeredCommands['dir'] = new DirectoryCommand();

@@ -101,7 +101,7 @@ function App() {
       }
     });
 
-    const registeredCommands = registerAllCommands();
+    window.registeredCommands = registerAllCommands();
 
     const runCommand = async () => {
       try {
@@ -110,7 +110,7 @@ function App() {
 
         switch (parts[0]) {
           default:
-            let app = registeredCommands[parts[0].toLowerCase()];
+            let app = window.registeredCommands[parts[0].toLowerCase()];
 
             if (app) {
               await app.execute(term, parts, currentDirectory, (e) => currentDirectory = e);
@@ -121,10 +121,9 @@ function App() {
           case 'help':
           case '?':
             if (parts.length < 2) {
-              console.log(registeredCommands)
-              new HelpCommand().execute(term, registeredCommands)
+              new HelpCommand().execute(term, window.registeredCommands)
             } else {
-              new HelpCommand().fetchHelp(term, registeredCommands, parts[1]);
+              new HelpCommand().fetchHelp(term, window.registeredCommands, parts[1]);
             }
             break
         }
