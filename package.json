@@ -17,9 +17,10 @@
     "xterm-addon-fit": "^0.7.0"
   },
   "scripts": {
-    "start": "react-scripts start",
-    "build": "react-scripts build",
-    "test": "react-scripts test",
+    "git-info": "node scripts/gitInfo.js",
+    "start": "npm run git-info && react-scripts start",
+    "build": "npm run git-info && react-scripts build",
+    "test": "npm run git-info && react-scripts test",
     "eject": "react-scripts eject"
   },
   "eslintConfig": {
