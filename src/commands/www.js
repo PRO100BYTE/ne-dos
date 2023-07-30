@@ -6,6 +6,11 @@ export default class WwwCommand {
         }
         params = params.slice(1);
         const url = params.join(" ");
-        window.open(url, '_blank');
+        try {
+            new URL(url);
+            window.open(url, '_blank');
+        } catch (_) {
+            term.writeln("Incorrect URL");
+        }
     }
   }
