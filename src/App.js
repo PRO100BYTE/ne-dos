@@ -6,7 +6,7 @@ import "xterm/css/xterm.css"
 import {FitAddon} from "xterm-addon-fit";
 import dateFormat from "dateformat";
 import {registerAllCommands} from "./registration";
-import {FormatDirectory} from "./StorageManager";
+import {FormatDirectory} from "./commands/Filesystem/StorageManager";
 import HelpCommand from "./commands/System/help";
 
 const GlobalStyles = createGlobalStyle`
