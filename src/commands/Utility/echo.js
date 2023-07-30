@@ -8,5 +8,9 @@ export default class EchoCommand {
       let string = params.join(" ");
       term.writeln(string);
     }
-  }
+
+    description() {
+      return "Print given text in terminal";
+    }
+}
   

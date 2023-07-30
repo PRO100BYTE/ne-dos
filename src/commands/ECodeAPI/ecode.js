@@ -28,6 +28,10 @@ export default class ECodeAPICommand {
         }
     }
 
+    description() {
+        return "Manage edwardcode.ru account";
+    }
+
     login(term, token) {
         if (!window.fs.existsSync("/.config")) {
             window.fs.mkdirSync("/.config");

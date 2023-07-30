@@ -7,4 +7,8 @@ export default class HttpcatCommand {
       term.writeln("");
       term.writeln("Opening a cat image for HTTP status " + status);
     }
+
+    description() {
+      return "Random http cat";
+    }
 }

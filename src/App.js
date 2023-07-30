@@ -7,6 +7,7 @@ import {FitAddon} from "xterm-addon-fit";
 import dateFormat from "dateformat";
 import {registerAllCommands} from "./registration";
 import {FormatDirectory} from "./StorageManager";
+import HelpCommand from "./commands/System/help";
 
 const GlobalStyles = createGlobalStyle`
   html, body {
@@ -107,12 +108,25 @@ function App() {
         let parts = command.split(" ");
         term.write('\r\n');
 
-        let app = registeredCommands[parts[0].toLowerCase()];
+        switch (parts[0]) {
+          default:
+            let app = registeredCommands[parts[0].toLowerCase()];
 
-        if (app) {
-          await app.execute(term, parts, currentDirectory, (e) => currentDirectory = e);
-        } else {
-          term.writeln(`Bad command`);
+            if (app) {
+              await app.execute(term, parts, currentDirectory, (e) => currentDirectory = e);
+            } else {
+              term.writeln(`Bad command`);
+            }
+            break
+          case 'help':
+          case '?':
+            if (parts.length < 2) {
+              console.log(registeredCommands)
+              new HelpCommand().execute(term, registeredCommands)
+            } else {
+              new HelpCommand().fetchHelp(term, registeredCommands, parts[1]);
+            }
+            break
         }
       } catch (e) {
         console.error(e);

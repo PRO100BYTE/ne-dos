@@ -22,4 +22,8 @@ export default class CatCommand {
 
     term.writeln(window.fs.readFileSync(dir, 'utf8').replaceAll("\n", "\r\n"));
   }
+
+  description() {
+    return "Print file content";
+  }
 }

@@ -21,4 +21,8 @@ export default class ChangeDirectoryCommand {
     }
     setDirectory(newCwd);
   }
+
+  description() {
+    return "Change directory";
+  }
 }
