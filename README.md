@@ -1,17 +1,19 @@
-# NE-DOS
+<h1 align="left">
+  <br>
+  <a href="https://ne-dos.ru/"><img src="https://raw.githubusercontent.com/TheDayG0ne/ProjectArcade/master/.github/images/nedos-title.png" alt="NE-DOS" width="500"></a>
+</h1>
 
-
-### How to start?
-1. Clone this repository: \
+### С чего начать?
+1. Выполните клонирование репозитория: \
    `git clone https://github.com/PRO100BYTE/ne-dos`
-2. Install dependencies: \
+2. Установите зависимости: \
    `npm install`
-3. Run development server: \
+3. Запустите сервер разработки: \
    `npm start`
 
 
-### How to create command?
-At first, create command file in `src/commands`. It has to be JavaScript file. For example, `my-command.js` \
+### Как создать и добавить команду?
+Для начала, создайте файл команды в `src/commands`. Это должен быть JavaScript файл. Например: `my-command.js` \
 Create your command logic:
 ```javascript
 export default class MyCommand {
