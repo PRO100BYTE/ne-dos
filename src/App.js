@@ -67,8 +67,8 @@ function App() {
     term.writeln(`Current time is ${t}`);
     term.writeln('');
     term.writeln('');
-    term.writeln('The NotDOS Personal Computer DOS');
-    term.writeln(`Version ${window['VERSION']} (C) Copyright NotDOS`);
+    term.writeln('The NE-DOS Personal Computer DOS');
+    term.writeln(`Version ${window['VERSION']} (C) Copyright PRO100BYTE Team`);
     term.writeln('');
 
     prompt(term);
