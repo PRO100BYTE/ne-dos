@@ -2,6 +2,8 @@ import VersionCommand from "./commands/ver";
 import DirectoryCommand from "./commands/dir";
 import ChangeDirectoryCommand from "./commands/cd";
 import ClearCommand from "./commands/cls";
+import CreditsCommand from "./commands/credits";
+import GithubCommand from "./commands/github";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -11,6 +13,8 @@ export const registerAllCommands = () => {
   registeredCommands['dir'] = new DirectoryCommand();
   registeredCommands['cd'] = new ChangeDirectoryCommand();
   registeredCommands['cls'] = new ClearCommand();
+  registeredCommands['credits'] = new CreditsCommand();
+  registeredCommands['github'] = new GithubCommand();
 
   return registeredCommands;
 };
