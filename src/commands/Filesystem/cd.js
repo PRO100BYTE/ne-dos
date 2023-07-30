@@ -1,5 +1,5 @@
 import path from "path-browserify";
-import {PrepareInternal} from "../StorageManager";
+import {PrepareInternal} from "./StorageManager";
 
 export default class ChangeDirectoryCommand {
   execute(term, params, directory, setDirectory) {

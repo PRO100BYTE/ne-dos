@@ -1,7 +1,7 @@
 import path from "path-browserify";
 import bytes from "bytes";
 import columnify from "columnify";
-import {PrepareInternal} from "../StorageManager";
+import {PrepareInternal} from "./StorageManager";
 
 export default class DirectoryCommand {
   execute(term, params, directory, setDirectory) {

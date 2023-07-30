@@ -1,22 +1,22 @@
-import VersionCommand from "./commands/ver";
-import DirectoryCommand from "./commands/dir";
-import ChangeDirectoryCommand from "./commands/cd";
-import ClearCommand from "./commands/cls";
-import CreditsCommand from "./commands/credits";
-import GithubCommand from "./commands/github";
-import DateCommand from "./commands/date";
-import TimeCommand from "./commands/time";
-import WwwCommand from "./commands/www";
-import ConfettiCommand from "./commands/confetti";
-import EchoCommand from "./commands/echo";
-import IpCommand from "./commands/ip";
-import GeoIpCommand from "./commands/geoip";
-import WaitCommand from "./commands/wait";
-import HttpcatCommand from "./commands/httpcat";
-import HttpdogCommand from "./commands/httpdog";
-import MakeDirectoryCommand from "./commands/mkdir";
-import CatCommand from "./commands/cat";
-import ECodeAPICommand from "./commands/ecode";
+import VersionCommand from "./commands/System/ver";
+import DirectoryCommand from "./commands/Filesystem/dir";
+import ChangeDirectoryCommand from "./commands/Filesystem/cd";
+import ClearCommand from "./commands/System/cls";
+import CreditsCommand from "./commands/General/credits";
+import GithubCommand from "./commands/General/github";
+import DateCommand from "./commands/General/date";
+import TimeCommand from "./commands/General/time";
+import WwwCommand from "./commands/General/www";
+import ConfettiCommand from "./commands/General/confetti";
+import EchoCommand from "./commands/Utility/echo";
+import IpCommand from "./commands/Utility/ip";
+import GeoIpCommand from "./commands/Utility/geoip";
+import WaitCommand from "./commands/System/wait";
+import HttpcatCommand from "./commands/General/httpcat";
+import HttpdogCommand from "./commands/General/httpdog";
+import MakeDirectoryCommand from "./commands/Filesystem/mkdir";
+import CatCommand from "./commands/Filesystem/cat";
+import ECodeAPICommand from "./commands/ECodeAPI/ecode";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -26,7 +26,7 @@ export const registerAllCommands = () => {
   registeredCommands['cls'] = new ClearCommand();
   registeredCommands['wait'] = new WaitCommand();
 
-  // File system commands
+  // Filesystem commands
   registeredCommands['dir'] = new DirectoryCommand();
   registeredCommands['cd'] = new ChangeDirectoryCommand();
   registeredCommands['mkdir'] = new MakeDirectoryCommand();
