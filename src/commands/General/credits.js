@@ -11,6 +11,7 @@ export default class CreditsCommand {
         term.writeln('');
         term.writeln('');
         term.writeln(`NE-DOS ${window['VERSION']}`);
+        term.writeln(`Built: ${window['BUILD_DATE']}`);
         term.writeln('');
         term.writeln('Developed by PRO100BYTE Team:');
         term.writeln('- Eduard Ilin (mraliscoder)');

@@ -13,6 +13,7 @@ export default class CommandCOMCommand {
         term.writeln('');
         term.writeln('The NE-DOS Personal Computer DOS');
         term.writeln(`Version ${window['VERSION']} (C) Copyright PRO100BYTE Team`);
+        term.writeln(`Built: ${window['BUILD_DATE']}`);
         term.writeln('');
     }
   
