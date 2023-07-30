@@ -5,6 +5,9 @@ on:
     branches: [ "master" ]
   workflow_dispatch:
 
+env:
+  GENERATE_SOURCEMAP: false
+
 jobs:
   build:
     runs-on: ubuntu-latest
