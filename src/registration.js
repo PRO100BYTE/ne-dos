@@ -7,6 +7,8 @@ import GithubCommand from "./commands/github";
 import ExitCommand from "./commands/exit";
 import DateCommand from "./commands/date";
 import TimeCommand from "./commands/time";
+import WwwCommand from "./commands/www";
+import ConfettiCommand from "./commands/confetti";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -21,6 +23,8 @@ export const registerAllCommands = () => {
   registeredCommands['exit'] = new ExitCommand();
   registeredCommands['date'] = new DateCommand();
   registeredCommands['time'] = new TimeCommand();
+  registeredCommands['www'] = new WwwCommand();
+  registeredCommands['confetti'] = new ConfettiCommand();
 
   return registeredCommands;
 };
