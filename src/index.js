@@ -10,7 +10,7 @@ BrowserFS.install(window);
 BrowserFS.configure({
   fs: "LocalStorage",
   options: {
-    storeName: "NeDOS"
+    storeName: "NE-DOS"
   }
 }, () => {
   window.fs = window.require("fs");
