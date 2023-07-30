@@ -93,7 +93,6 @@ function App() {
           if ((e >= String.fromCharCode(0x20) && e <= String.fromCharCode(0x7E)) || e >= '\u00a0') {
             let cmd = command;
             cmd += e;
-            console.log(cmd);
             setCommand(cmd);
             term.write(e);
           }
@@ -102,13 +101,15 @@ function App() {
 
     const registeredCommands = registerAllCommands();
 
-    const runCommand = () => {
+    const runCommand = async () => {
       try {
         let parts = command.split(" ");
         term.write('\r\n');
 
-        if (registeredCommands[parts[0].toLowerCase()] != null) {
-          registeredCommands[parts[0].toLowerCase()].execute(term, parts, `C:${currentDirectory}`, (e) => currentDirectory = e);
+        let app = registeredCommands[parts[0].toLowerCase()];
+
+        if (app) {
+          await app.execute(term, parts, `C:${currentDirectory}`, (e) => currentDirectory = e);
         } else {
           term.writeln(`Bad command`);
         }

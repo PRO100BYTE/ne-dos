@@ -9,6 +9,8 @@ import TimeCommand from "./commands/time";
 import WwwCommand from "./commands/www";
 import ConfettiCommand from "./commands/confetti";
 import EchoCommand from "./commands/echo";
+import IpCommand from "./commands/ip";
+import GeoIpCommand from "./commands/geoip";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -25,6 +27,8 @@ export const registerAllCommands = () => {
   registeredCommands['www'] = new WwwCommand();
   registeredCommands['confetti'] = new ConfettiCommand();
   registeredCommands['echo'] = new EchoCommand();
+  registeredCommands['ip'] = new IpCommand();
+  registeredCommands['geoip'] = new GeoIpCommand();
 
   return registeredCommands;
 };
