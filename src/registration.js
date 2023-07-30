@@ -9,6 +9,7 @@ import DateCommand from "./commands/date";
 import TimeCommand from "./commands/time";
 import WwwCommand from "./commands/www";
 import ConfettiCommand from "./commands/confetti";
+import EchoCommand from "./commands/echo";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -25,6 +26,7 @@ export const registerAllCommands = () => {
   registeredCommands['time'] = new TimeCommand();
   registeredCommands['www'] = new WwwCommand();
   registeredCommands['confetti'] = new ConfettiCommand();
+  registeredCommands['echo'] = new EchoCommand();
 
   return registeredCommands;
 };
