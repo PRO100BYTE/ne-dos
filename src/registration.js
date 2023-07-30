@@ -23,6 +23,8 @@ import CommandCOMCommand from "./commands/System/command";
 import DeleteCommand from "./commands/Filesystem/rm";
 import DeleteDirectoryCommand from "./commands/Filesystem/rmdir";
 import StatusCommand from "./commands/System/status";
+import DownloadCommand from "./commands/Filesystem/download";
+import UploadCommand from "./commands/Filesystem/upload";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -42,6 +44,8 @@ export const registerAllCommands = () => {
   registeredCommands['type'] = new CatCommand();
   registeredCommands['del'] = new DeleteCommand();
   registeredCommands['rmdir'] = new DeleteDirectoryCommand();
+  registeredCommands['download'] = new DownloadCommand();
+  registeredCommands['upload'] = new UploadCommand();
 
   // General commands
   registeredCommands['credits'] = new CreditsCommand();

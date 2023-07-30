@@ -3,11 +3,13 @@ import {PrepareInternal} from "./StorageManager";
 
 export default class DeleteDirectoryCommand {
   execute(term, params, directory, setDirectory) {
-    if (!params[1] || params[1] === "") {
+    params.shift();
+    const context = params.join(" ");
+    if (!context || context === "") {
       term.writeln("Invalid path");
       return;
     }
-    const target = path.resolve(directory, PrepareInternal(params[1]));
+    const target = path.resolve(directory, PrepareInternal(context));
     if (!window.fs.existsSync(target)) {
       term.writeln("No such file");
       return;
