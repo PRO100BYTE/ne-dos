@@ -16,19 +16,26 @@ export const registerAllCommands = () => {
   let registeredCommands = {};
 
   // Register commands here
-  registeredCommands['ver'] = new VersionCommand();
-  registeredCommands['dir'] = new DirectoryCommand();
-  registeredCommands['cd'] = new ChangeDirectoryCommand();
-  registeredCommands['cls'] = new ClearCommand();
-  registeredCommands['credits'] = new CreditsCommand();
-  registeredCommands['github'] = new GithubCommand();
-  registeredCommands['date'] = new DateCommand();
-  registeredCommands['time'] = new TimeCommand();
-  registeredCommands['www'] = new WwwCommand();
-  registeredCommands['confetti'] = new ConfettiCommand();
-  registeredCommands['echo'] = new EchoCommand();
-  registeredCommands['ip'] = new IpCommand();
-  registeredCommands['geoip'] = new GeoIpCommand();
+    // System commands
+    registeredCommands['ver'] = new VersionCommand();
+    registeredCommands['cls'] = new ClearCommand();
+  
+    // File system commands
+    registeredCommands['dir'] = new DirectoryCommand();
+    registeredCommands['cd'] = new ChangeDirectoryCommand();
+
+    // General commands
+    registeredCommands['credits'] = new CreditsCommand();
+    registeredCommands['github'] = new GithubCommand();
+    registeredCommands['date'] = new DateCommand();
+    registeredCommands['time'] = new TimeCommand();
+    registeredCommands['www'] = new WwwCommand();
+    registeredCommands['confetti'] = new ConfettiCommand();
+  
+    // Utility commands
+    registeredCommands['echo'] = new EchoCommand();
+    registeredCommands['ip'] = new IpCommand();
+    registeredCommands['geoip'] = new GeoIpCommand();
 
   return registeredCommands;
 };
