@@ -16,6 +16,7 @@ export default class VersionCommand {
     }
     term.writeln('');
     term.writeln(`NE-DOS ${window['VERSION']}`);
+    term.writeln(`Built: ${window['BUILD_DATE']}`);
     term.writeln('');
   }
 

@@ -5,6 +5,7 @@ import versionGitInfo from "./versionGitInfo.json";
 const BrowserFS = require("browserfs");
 
 window['VERSION'] = `${versionGitInfo.gitBranch}/${versionGitInfo.gitCommitHash}`;
+window['BUILD_DATE'] = versionGitInfo.date;
 
 BrowserFS.install(window);
 BrowserFS.configure({

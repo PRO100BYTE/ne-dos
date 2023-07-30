@@ -15,10 +15,12 @@ const execSyncWrapper = (command) => {
 const main = () => {
   let gitBranch = execSyncWrapper('git rev-parse --abbrev-ref HEAD');
   let gitCommitHash = execSyncWrapper('git rev-parse --short=7 HEAD');
+  let date = new Date().toUTCString();
 
   const obj = {
     gitBranch,
     gitCommitHash,
+    date
   };
 
   const filePath = path.resolve('src', 'versionGitInfo.json');
