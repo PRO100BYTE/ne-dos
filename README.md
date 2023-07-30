@@ -15,6 +15,7 @@
 ### Как создать и добавить команду?
 Для начала, создайте файл команды в `src/commands`. Это должен быть JavaScript файл. 
 Например: `my-command.js` \
+
 Создайте логику своей команды:
 ```javascript
 export default class MyCommand {
