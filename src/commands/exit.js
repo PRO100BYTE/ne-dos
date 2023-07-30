@@ -12,7 +12,6 @@ export default class ExitCommand {
             setTimeout(() => {
                 window.close();
             }, 5000);
-            return;
         }
 
         setTimeout(() => {
