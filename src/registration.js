@@ -23,6 +23,7 @@ import CommandCOMCommand from "./commands/System/command";
 import DeleteCommand from "./commands/Filesystem/rm";
 import DeleteDirectoryCommand from "./commands/Filesystem/rmdir";
 import WeatherCommand from "./commands/Utility/weather";
+import StatusCommand from "./commands/System/status";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -33,6 +34,7 @@ export const registerAllCommands = () => {
   registeredCommands['wait'] = new WaitCommand();
   registeredCommands['registercommand'] = new RegisterCmdCommand();
   registeredCommands['command'] = new CommandCOMCommand();
+  registeredCommands['status'] = new StatusCommand();
 
   // Filesystem commands
   registeredCommands['dir'] = new DirectoryCommand();
