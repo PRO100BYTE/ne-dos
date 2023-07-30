@@ -7,6 +7,7 @@ import GithubCommand from "./commands/github";
 import ExitCommand from "./commands/exit";
 import DateCommand from "./commands/date";
 import TimeCommand from "./commands/time";
+import EchoCommand from "./commands/echo";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -21,6 +22,7 @@ export const registerAllCommands = () => {
   registeredCommands['exit'] = new ExitCommand();
   registeredCommands['date'] = new DateCommand();
   registeredCommands['time'] = new TimeCommand();
+  registeredCommands['echo'] = new EchoCommand();
 
   return registeredCommands;
 };
