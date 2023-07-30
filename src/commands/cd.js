@@ -1,4 +1,5 @@
 import path from "path-browserify";
+import {PrepareInternal} from "../StorageManager";
 
 export default class ChangeDirectoryCommand {
   execute(term, params, directory, setDirectory) {
@@ -7,7 +8,7 @@ export default class ChangeDirectoryCommand {
       term.writeln("Invalid directory name");
       return;
     }
-    param = param.replaceAll("\\", "/");
+    param = PrepareInternal(param);
 
     const newCwd = path.resolve(directory, param);
     if (!window.fs.existsSync(newCwd)) {
