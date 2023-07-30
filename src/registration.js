@@ -17,6 +17,7 @@ import HttpdogCommand from "./commands/General/httpdog";
 import MakeDirectoryCommand from "./commands/Filesystem/mkdir";
 import CatCommand from "./commands/Filesystem/cat";
 import ECodeAPICommand from "./commands/ECodeAPI/ecode";
+import CalcCommand from "./commands/Utility/calc";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -46,6 +47,7 @@ export const registerAllCommands = () => {
   registeredCommands['echo'] = new EchoCommand();
   registeredCommands['ip'] = new IpCommand();
   registeredCommands['geoip'] = new GeoIpCommand();
+  registeredCommands['calc'] = new CalcCommand();
 
   // ECodeAPI
   registeredCommands['ecode'] = new ECodeAPICommand();
