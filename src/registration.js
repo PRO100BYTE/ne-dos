@@ -4,7 +4,6 @@ import ChangeDirectoryCommand from "./commands/cd";
 import ClearCommand from "./commands/cls";
 import CreditsCommand from "./commands/credits";
 import GithubCommand from "./commands/github";
-import ExitCommand from "./commands/exit";
 import DateCommand from "./commands/date";
 import TimeCommand from "./commands/time";
 import WwwCommand from "./commands/www";
@@ -21,7 +20,6 @@ export const registerAllCommands = () => {
   registeredCommands['cls'] = new ClearCommand();
   registeredCommands['credits'] = new CreditsCommand();
   registeredCommands['github'] = new GithubCommand();
-  registeredCommands['exit'] = new ExitCommand();
   registeredCommands['date'] = new DateCommand();
   registeredCommands['time'] = new TimeCommand();
   registeredCommands['www'] = new WwwCommand();

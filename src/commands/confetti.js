@@ -4,7 +4,7 @@ export default class ConfettiCommand {
     execute(term, params, directory, setDirectory) {
         const jsConfetti = new JSConfetti();
         jsConfetti.addConfetti({
-            emojis: ['🌈', '⚡️', '💥', '✨', '💫', '🌸'],
+            emojis: ['🌈', '⚡️', '💥', '✨', '💫', '🌸', '🖥', '💻'],
         });
     }
   }
