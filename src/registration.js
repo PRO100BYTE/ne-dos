@@ -22,6 +22,7 @@ import RegisterCmdCommand from "./commands/System/registercommand";
 import CommandCOMCommand from "./commands/System/command";
 import DeleteCommand from "./commands/Filesystem/rm";
 import DeleteDirectoryCommand from "./commands/Filesystem/rmdir";
+import WeatherCommand from "./commands/Utility/weather";
 import StatusCommand from "./commands/System/status";
 
 export const registerAllCommands = () => {
@@ -58,6 +59,7 @@ export const registerAllCommands = () => {
   registeredCommands['ip'] = new IpCommand();
   registeredCommands['geoip'] = new GeoIpCommand();
   registeredCommands['geo'] = new GeoCommand();
+  registeredCommands['weather'] = new WeatherCommand();
 
   // ECodeAPI
   registeredCommands['ecode'] = new ECodeAPICommand();
