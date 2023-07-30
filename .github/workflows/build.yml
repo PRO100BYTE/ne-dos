@@ -10,6 +10,8 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v3
+      with:
+        token: ${{ secrets.PUBLISH_TOKEN }}
 
     - run : npm i
       shell: bash
