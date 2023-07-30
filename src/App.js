@@ -1,4 +1,4 @@
-import React, {useEffect, useState} from "react";
+import React, {useEffect} from "react";
 import styled, {createGlobalStyle} from "styled-components";
 import { Terminal as Term } from "xterm";
 import "xterm/css/xterm.css"
