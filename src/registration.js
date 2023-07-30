@@ -12,7 +12,7 @@ import EchoCommand from "./commands/echo";
 import IpCommand from "./commands/ip";
 import GeoIpCommand from "./commands/geoip";
 import WaitCommand from "./commands/wait";
-import CatCommand from "./commands/cat";
+import HttpcatCommand from "./commands/cat";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -33,7 +33,7 @@ export const registerAllCommands = () => {
     registeredCommands['time'] = new TimeCommand();
     registeredCommands['www'] = new WwwCommand();
     registeredCommands['confetti'] = new ConfettiCommand();
-    registeredCommands['cat'] = new CatCommand();
+    registeredCommands['httpcat'] = new HttpcatCommand();
   
     // Utility commands
     registeredCommands['echo'] = new EchoCommand();
