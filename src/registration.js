@@ -20,6 +20,8 @@ import ECodeAPICommand from "./commands/ECodeAPI/ecode";
 import GeoCommand from "./commands/Utility/geo";
 import RegisterCmdCommand from "./commands/System/registercommand";
 import CommandCOMCommand from "./commands/System/command";
+import DeleteCommand from "./commands/Filesystem/rm";
+import DeleteDirectoryCommand from "./commands/Filesystem/rmdir";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -36,6 +38,8 @@ export const registerAllCommands = () => {
   registeredCommands['cd'] = new ChangeDirectoryCommand();
   registeredCommands['mkdir'] = new MakeDirectoryCommand();
   registeredCommands['type'] = new CatCommand();
+  registeredCommands['del'] = new DeleteCommand();
+  registeredCommands['rmdir'] = new DeleteDirectoryCommand();
 
   // General commands
   registeredCommands['credits'] = new CreditsCommand();
