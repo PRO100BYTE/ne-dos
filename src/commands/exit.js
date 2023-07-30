@@ -7,8 +7,6 @@ export default class ExitCommand {
         if (params[1] === ".confetti") {
             const jsConfetti = new JSConfetti() 
             jsConfetti.addConfetti({ emojis: ['🖥', '💻'], emojiSize: 50, confettiNumber: 100, })
-            term.writeln(''); 
-            term.writeln('The NE-DOS session will be terminated in 5 seconds. Bye-Bye!');
             setTimeout(() => {
                 window.close();
             }, 5000);
