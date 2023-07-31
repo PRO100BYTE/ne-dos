@@ -1,77 +1,55 @@
-// Импортируем библиотеку Howler.js для работы с аудио
 // #TheDayG0ne: Если бы это говно еще работало...
 import { Howl, Howler } from 'howler';
 
-// Создаем класс AudioplayerCommand
 export default class AudioplayerCommand {
-  // Конструктор класса
   constructor() {
-    // Создаем массив для хранения плейлиста
     this.playlist = [];
-    // Создаем переменную для хранения текущего индекса плейлиста
     this.index = 0;
-    // Создаем переменную для хранения текущего аудио
     this.sound = null;
-    // Создаем переменную для хранения режима повтора
     this.repeat = false;
   }
 
   // Метод для выполнения команды
   execute(term, params, directory, setDirectory) {
-    // Проверяем, есть ли параметры
+    
     if (params.length === 0) {
-      // Если нет, выводим справку об использовании программы
       this.help(term);
     } else {
-      // Если есть, проверяем, является ли первый параметр аудиофайлом
-      if (params[0].endsWith('.mp3') || params[0].endsWith('.ogg') || params[0].endsWith('.wav')) {
-        // Если да, добавляем его в плейлист
-        this.playlist.push(params[0]);
-        // Выводим сообщение о добавлении файла в плейлист
-        term.writeln(`Добавлен файл ${params[0]} в плейлист`);
-        // Если плейлист содержит только один файл, запускаем его проигрывание
+      if (params[1].endsWith('.mp3') || params[1].endsWith('.ogg') || params[1].endsWith('.wav')) {
+        this.playlist.push(params[1]);
+        term.writeln(`Added ${params[1]} file to playlist`);
         if (this.playlist.length === 1) {
           this.play(term);
         }
       } else {
-        // Если нет, проверяем, является ли первый параметр командой управления
-        switch (params[0]) {
+        switch (params[1]) {
           case 'play':
-            // Если команда play, запускаем проигрывание текущего файла
             this.play(term);
             break;
           case 'pause':
-            // Если команда pause, приостанавливаем проигрывание текущего файла
             this.pause(term);
             break;
           case 'stop':
-            // Если команда stop, останавливаем проигрывание текущего файла и сбрасываем индекс плейлиста
             this.stop(term);
             break;
           case 'prev':
-            // Если команда prev, переходим к предыдущему файлу в плейлисте и запускаем его проигрывание
             this.prev(term);
             break;
           case 'next':
-            // Если команда next, переходим к следующему файлу в плейлисте и запускаем его проигрывание
             this.next(term);
             break;
           case 'exit':
-            // Если команда exit, выходим из программы и очищаем плейлист
             this.exit(term);
             break;
           case 'repeat':
-            // Если команда repeat, переключаем режим повтора и выводим его состояние
             this.repeat = !this.repeat;
-            term.writeln(`Режим повтора: ${this.repeat ? 'включен' : 'выключен'}`);
+            term.writeln(`Repeat mode: ${this.repeat ? 'enabled' : 'disabled'}`);
             break;
           case 'help':
-            // Если команда help, выводим справку по программе
             this.help(term);
             break;
-          default:
-            // Если неизвестная команда, выводим сообщение об ошибке
-            term.writeln(`Неверная команда: ${params[0]}`);
+          default:е
+            term.writeln(`Invalid command: ${params[0]}`);
         }
       }
     }
@@ -79,169 +57,126 @@ export default class AudioplayerCommand {
 
   // Метод для получения краткого описания команды (для команды help)
   description() {
-    return "Программа для проигрывания аудиофайлов";
+    return "Program for playing audio files";
   }
 
   // Метод для вывода справки по программе
   help(term) {
-    term.writeln("Использование: audioplayer [файл | команда]");
-    term.writeln("Файл - аудиофайл в формате mp3, ogg или wav");
-    term.writeln("Команда - одна из следующих:");
-    term.writeln("  play - запустить проигрывание текущего файла");
-    term.writeln("  pause - приостановить проигрывание текущего файла");
-    term.writeln("  stop - остановить проигрывание текущего файла");
-    term.writeln("  prev - перейти к предыдущему файлу в плейлисте");
-    term.writeln("  next - перейти к следующему файлу в плейлисте");
-    term.writeln("  exit - выйти из программы и очистить плейлист");
-    term.writeln("  repeat - переключить режим повтора");
-    term.writeln("  help - вывести эту справку");
+    term.writeln("Usage: audioplayer [file | command]");
+    term.writeln("File - audio file in mp3, ogg or wav format");
+    term.writeln("The command is one of the following:");
+    term.writeln(" play - start playing the current file");
+    term.writeln(" pause - pause the playback of the current file");
+    term.writeln(" stop - stop playing the current file");
+    term.writeln(" prev - go to the previous file in the playlist");
+    term.writeln(" next - go to the next file in the playlist");
+    term.writeln(" exit - exit the program and clear the playlist");
+    term.writeln(" repeat - toggle repeat mode");
+    term.writeln(" help - print this help");
   }
 
   // Метод для запуска проигрывания текущего файла
   play(term) {
-    // Проверяем, есть ли файлы в плейлисте
     if (this.playlist.length > 0) {
-      // Если есть, проверяем, есть ли текущий аудио
       if (this.sound) {
-        // Если есть, возобновляем его проигрывание
         this.sound.play();
       } else {
-        // Если нет, создаем новый аудио из файла по текущему индексу плейлиста
         this.sound = new Howl({
           src: [this.playlist[this.index]],
-          // Устанавливаем обработчик события окончания проигрывания
           onend: () => {
-            // Проверяем, включен ли режим повтора
             if (this.repeat) {
-              // Если да, запускаем проигрывание заново
               this.play(term);
             } else {
-              // Если нет, переходим к следующему файлу в плейлисте
               this.next(term);
             }
           }
         });
-        // Запускаем проигрывание аудио
         this.sound.play();
       }
-      // Выводим сообщение о проигрывании файла и интерфейс программы
-      term.writeln(`Проигрывается файл ${this.playlist[this.index]}`);
+      term.writeln(`Playing file ${this.playlist[this.index]}`);
       term.writeln(this.interface());
     } else {
-      // Если нет, выводим сообщение об ошибке
-      term.writeln("Плейлист пуст");
+      term.writeln("The playlist is empty");
     }
   }
 
   // Метод для приостановки проигрывания текущего файла
   pause(term) {
-    // Проверяем, есть ли текущий аудио
     if (this.sound) {
-      // Если есть, приостанавливаем его проигрывание
       this.sound.pause();
-      // Выводим сообщение о приостановке файла и интерфейс программы
-      term.writeln(`Приостановлен файл ${this.playlist[this.index]}`);
+      term.writeln(`Paused file ${this.playlist[this.index]}`);
       term.writeln(this.interface());
     } else {
-      // Если нет, выводим сообщение об ошибке
-      term.writeln("Нет текущего файла");
+      term.writeln("There is no current file");
     }
   }
 
   // Метод для остановки проигрывания текущего файла и сброса индекса плейлиста
   stop(term) {
-    // Проверяем, есть ли текущий аудио
     if (this.sound) {
-      // Если есть, останавливаем его проигрывание и уничтожаем его
       this.sound.stop();
       this.sound.unload();
       this.sound = null;
-      // Сбрасываем индекс плейлиста на ноль
       this.index = 0;
-      // Выводим сообщение об остановке файла и интерфейс программы
-      term.writeln(`Остановлен файл ${this.playlist[this.index]}`);
+      term.writeln(`Stopped file ${this.playlist[this.index]}`);
       term.writeln(this.interface());
     } else {
-      // Если нет, выводим сообщение об ошибке
-      term.writeln("Нет текущего файла");
+      term.writeln("There is no current file");
     }
   }
 
   // Метод для перехода к предыдущему файлу в плейлисте и его проигрывания
   prev(term) {
-    // Проверяем, есть ли файлы в плейлисте
     if (this.playlist.length > 0) {
-      // Если есть, уменьшаем индекс плейлиста на единицу с учетом цикличности
       this.index = (this.index - 1 + this.playlist.length) % this
       .playlist.length;
-      // Проверяем, есть ли текущий аудио
       if (this.sound) {
-        // Если есть, останавливаем его проигрывание и уничтожаем его
         this.sound.stop();
         this.sound.unload();
         this.sound = null;
       }
-      // Запускаем проигрывание файла по новому индексу плейлиста
       this.play(term);
     } else {
-      // Если нет, выводим сообщение об ошибке
-      term.writeln("Плейлист пуст");
+      term.writeln("The playlist is empty");
     }
   }
 
   // Метод для перехода к следующему файлу в плейлисте и его проигрывания
   next(term) {
-    // Проверяем, есть ли файлы в плейлисте
     if (this.playlist.length > 0) {
-      // Если есть, увеличиваем индекс плейлиста на единицу с учетом цикличности
       this.index = (this.index + 1) % this.playlist.length;
-      // Проверяем, есть ли текущий аудио
       if (this.sound) {
-        // Если есть, останавливаем его проигрывание и уничтожаем его
         this.sound.stop();
         this.sound.unload();
         this.sound = null;
       }
-      // Запускаем проигрывание файла по новому индексу плейлиста
       this.play(term);
     } else {
-      // Если нет, выводим сообщение об ошибке
-      term.writeln("Плейлист пуст");
+      term.writeln("The playlist is empty");
     }
   }
 
   // Метод для выхода из программы и очистки плейлиста
   exit(term) {
-    // Проверяем, есть ли текущий аудио
     if (this.sound) {
-      // Если есть, останавливаем его проигрывание и уничтожаем его
       this.sound.stop();
       this.sound.unload();
       this.sound = null;
     }
-    // Очищаем плейлист
     this.playlist = [];
-    // Выводим сообщение о выходе из программы
-    term.writeln("Вы вышли из программы audioplayer");
+    term.writeln("Shutting down the AudioPlayer...");
   }
 
   // Метод для создания интерфейса программы в виде псевдографики
 interface() {
-    // Создаем переменную для хранения интерфейса в виде строки
-    // Переименовываем переменную с interface на interfaceString, чтобы избежать конфликта с ключевым словом TypeScript
     let interfaceString = "";
-    // Добавляем верхнюю границу интерфейса
     interfaceString += "+-----------------+\n";
-    // Добавляем название программы и текущий файл в плейлисте
-    interfaceString += `| audioplayer     |\n`;
+    interfaceString += `| AudioPlayer     |\n`;
     interfaceString += `| ${this.playlist[this.index]} |\n`;
-    // Добавляем нижнюю границу интерфейса
     interfaceString += "+-----------------+\n";
-    // Добавляем команды управления проигрывателем
     interfaceString += "| play | pause | stop |\n";
     interfaceString += "| prev | next  | exit |\n";
     interfaceString += "| repeat | help |\n";
-    // Возвращаем интерфейс в виде строки
     return interfaceString;
   }
   
