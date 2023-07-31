@@ -1,4 +1,5 @@
 // Импортируем библиотеку Howler.js для работы с аудио
+// #TheDayG0ne: Если бы это говно еще работало...
 import { Howl, Howler } from 'howler';
 
 // Создаем класс AudioplayerCommand
