@@ -1,11 +1,9 @@
 // Import the Howler.js library for working with audio
-import { Howl } from 'howler';
+import Howl from 'howler';
 
 // Import the StorageManager for formatting and preparing directories
 import { FormatDirectory, PrepareInternal } from '../Filesystem/StorageManager';
-
-// Import the BrowserFS for finding the required file on the disk
-const BrowserFS = require("browserfs");
+import path from 'path-browserify'
 
 // Create the AudioplayerCommand class
 export default class AudioplayerCommand {
@@ -34,7 +32,7 @@ execute(term, params, directory, setDirectory) {
         // Import the path module to resolve the file path
         const path = require('path');
         const filename = path.resolve(directory, params[1]);
-        const fileExists = fs.existsSync(filename);
+        const fileExists = window.fs.existsSync(filename);
         if (fileExists) {
           // If yes, add it to the playlist
           this.playlist.push(params[1]);
