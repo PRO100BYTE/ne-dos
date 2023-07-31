@@ -4,7 +4,7 @@ export default class CalcCommand {
   execute(term, params, directory, setDirectory) {
     if (params.length > 0) {
       try {
-        const expression = params[0].replace(/calc|\s/g, '');
+        const expression = params[1].replace(/calc|\s/g, '');
         const result = basicMath.evaluate(expression);
         term.writeln(result);
       } catch (error) {
