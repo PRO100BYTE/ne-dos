@@ -1,5 +1,11 @@
 // Import the Howler.js library for working with audio
-import { Howl, Howler } from 'howler';
+import { Howl } from 'howler';
+
+// Import the StorageManager for formatting and preparing directories
+import { FormatDirectory, PrepareInternal } from '../Filesystem/StorageManager';
+
+// Import the BrowserFS for finding the required file on the disk
+const BrowserFS = require("browserfs");
 
 // Create the AudioplayerCommand class
 export default class AudioplayerCommand {
@@ -16,7 +22,7 @@ export default class AudioplayerCommand {
   }
 
   // Method to execute the command
-  execute(term, params, directory, setDirectory) {
+execute(term, params, directory, setDirectory) {
     // Check if there are parameters
     if (params.length === 0) {
       // If not, display the help message for using the program
@@ -24,13 +30,23 @@ export default class AudioplayerCommand {
     } else {
       // If yes, check if the second parameter is an audio file
       if (params[1].endsWith('.mp3') || params[1].endsWith('.ogg') || params[1].endsWith('.wav')) {
-        // If yes, add it to the playlist
-        this.playlist.push(params[1]);
-        // Display a message about adding the file to the playlist
-        term.writeln(`Added ${params[1]} file to playlist`);
-        // If the playlist contains only one file, start playing it
-        if (this.playlist.length === 1) {
-          this.play(term);
+        // If yes, check if the file exists in the current directory
+        // Import the path module to resolve the file path
+        const path = require('path');
+        const filename = path.resolve(directory, params[1]);
+        const fileExists = fs.existsSync(filename);
+        if (fileExists) {
+          // If yes, add it to the playlist
+          this.playlist.push(params[1]);
+          // Display a message about adding the file to the playlist
+          term.writeln(`Added ${params[1]} file to playlist`);
+          // If the playlist contains only one file, start playing it
+          if (this.playlist.length === 1) {
+            this.play(term);
+          }
+        } else {
+          // If not, display an error message
+          term.writeln(`File ${params[1]} not found`);
         }
       } else {
         // If not, check if the second parameter is a control command
@@ -75,6 +91,7 @@ export default class AudioplayerCommand {
       }
     }
   }
+  
 
   // Method to get a brief description of the command (for the help command)
   description() {
@@ -107,120 +124,124 @@ export default class AudioplayerCommand {
       } else {
         // If not, create a new audio from the file by the current index of the playlist
         this.sound = new Howl({
-            src: [this.playlist[this.index]],
-            // Set the handler for the end of playback event
-            onend: () => {
-              // Check if the repeat mode is on
-              if (this.repeat) {
-                // If yes, start playing again
-                this.play(term);
-              } else {
-                // If not, go to the next file in the playlist
-                this.next(term);
-              }
+          src: [this.playlist[this.index]],
+          // Set the handler for the end of playback event
+          onend: () => {
+            // Check if the repeat mode is on
+            if (this.repeat) {
+              // If yes, start playing again
+              this.play(term);
+            } else {
+              // If not, go to the next file in the playlist
+              this.next(term);
             }
-          });
-          // Start playing the audio
-          this.sound.play();
-        }
-        // Display a message about playing the file and the interface of the program
-        term.writeln(`Playing file ${this.playlist[this.index]}`);
-        term.writeln(this.interface());
-      } else {
-        // If not, display an error message
-        term.writeln("Playlist is empty");
+          }
+        });
+        // Start playing the audio
+        this.sound.play();
       }
+      // Display a message about playing the file and the interface of the program
+      term.writeln(`Playing file ${this.playlist[this.index]}`);
+      term.writeln(this.interface());
+      // Replace the prompt with a string for entering commands for the player
+      term.set_prompt("audioplayer> ");
+    } else {
+      // If not, display an error message
+      term.writeln("Playlist is empty");
     }
-  
-    // Method to pause playing the current file
-    pause(term) {
-      // Check if there is a current audio
-      if (this.sound) {
-        // If yes, pause playing it
-        this.sound.pause();
-        // Display a message about pausing the file and the interface of the program
-        term.writeln(`Paused file ${this.playlist[this.index]}`);
-        term.writeln(this.interface());
-      } else {
-        // If not, display an error message
-        term.writeln("No current file");
-      }
+  }
+
+  // Method to pause playing the current file
+  pause(term) {
+    // Check if there is a current audio
+    if (this.sound) {
+      // If yes, pause playing it
+      this.sound.pause();
+      // Display a message about pausing the file and the interface of the program
+      term.writeln(`Paused file ${this.playlist[this.index]}`);
+      term.writeln(this.interface());
+    } else {
+      // If not, display an error message
+      term.writeln("No current file");
     }
-  
-    // Method to stop playing the current file and reset the playlist index
-    stop(term) {
+  }
+
+  // Method to stop playing the current file and reset the playlist index
+  stop(term) {
+    // Check if there is a current audio
+    if (this.sound) {
+      // If yes, stop playing it and destroy it
+      this.sound.stop();
+      this.sound.unload();
+      this.sound = null;
+      // Reset the playlist index to zero
+      this.index = 0;
+      // Display a message about stopping the file and the interface of the program
+      term.writeln(`Stopped file ${this.playlist[this.index]}`);
+      term.writeln(this.interface());
+    } else {
+      // If not, display an error message
+      term.writeln("No current file");
+    }
+  }
+
+  // Method to go to the previous file in the playlist and play it
+  prev(term) {
+    // Check if there are files in the playlist
+    if (this.playlist.length > 0) {
+      // If yes, decrease the playlist index by one with cyclicality
+      this.index = (this.index - 1 + this.playlist.length) % this.playlist.length;
       // Check if there is a current audio
       if (this.sound) {
         // If yes, stop playing it and destroy it
         this.sound.stop();
         this.sound.unload();
         this.sound = null;
-        // Reset the playlist index to zero
-        this.index = 0;
-        // Display a message about stopping the file and the interface of the program
-        term.writeln(`Stopped file ${this.playlist[this.index]}`);
-        term.writeln(this.interface());
-      } else {
-        // If not, display an error message
-        term.writeln("No current file");
       }
+      // Start playing the file by the new index of the playlist
+      this.play(term);
+    } else {
+      // If not, display an error message
+      term.writeln("Playlist is empty");
     }
-  
-    // Method to go to the previous file in the playlist and play it
-    prev(term) {
-      // Check if there are files in the playlist
-      if (this.playlist.length > 0) {
-        // If yes, decrease the playlist index by one with cyclicality
-        this.index = (this.index - 1 + this.playlist.length) % this.playlist.length;
-        // Check if there is a current audio
-        if (this.sound) {
-          // If yes, stop playing it and destroy it
-          this.sound.stop();
-          this.sound.unload();
-          this.sound = null;
-        }
-        // Start playing the file by the new index of the playlist
-        this.play(term);
-      } else {
-        // If not, display an error message
-        term.writeln("Playlist is empty");
-      }
-    }
-  
-    // Method to go to the next file in the playlist and play it
-    next(term) {
-      // Check if there are files in the playlist
-      if (this.playlist.length > 0) {
-        // If yes, increase the playlist index by one with cyclicality
-        this.index = (this.index + 1) % this.playlist.length;
-        // Check if there is a current audio
-        if (this.sound) {
-          // If yes, stop playing it and destroy it
-          this.sound.stop();
-          this.sound.unload();
-          this.sound = null;
-        }
-        // Start playing the file by the new index of the playlist
-        this.play(term);
-      } else {
-        // If not, display an error message
-        term.writeln("Playlist is empty");
-      }
-    }
-  
-    // Method to exit from the program and clear the playlist
-    exit(term) {
+  }
+
+  // Method to go to the next file in the playlist and play it
+  next(term) {
+    // Check if there are files in the playlist
+    if (this.playlist.length > 0) {
+      // If yes, increase the playlist index by one with cyclicality
+      this.index = (this.index + 1) % this.playlist.length;
       // Check if there is a current audio
       if (this.sound) {
         // If yes, stop playing it and destroy it
         this.sound.stop();
         this.sound.unload();
+        this.sound = null;
+      }
+      // Start playing the file by the new index of the playlist
+      this.play(term);
+    } else {
+      // If not, display an error message
+      term.writeln("Playlist is empty");
+    }
+  }
+
+  // Method to exit from the program and clear the playlist
+  exit(term) {
+    // Check if there is a current audio
+    if (this.sound) {
+      // If yes, stop playing it and destroy it
+      this.sound.stop();
+      this.sound.unload();
       this.sound = null;
     }
     // Clear the playlist
     this.playlist = [];
     // Display a message about exiting from the program
     term.writeln("You exited from the audioplayer program");
+    // Restore the original prompt
+    term.set_prompt("C:\\>");
   }
 
   // Method to create the interface of the program in pseudographics
@@ -231,19 +252,20 @@ export default class AudioplayerCommand {
     // Add a blank line
     interfaceString += "\r\n";
     // Add the top border of the interface
-    interfaceString += "+===================+\r\n";
+    interfaceString += "+=============================================+\r\n";
     // Add the name of the program and the current file in the playlist
-    interfaceString += `|  AudioPlayer      |\r\n`;
-    interfaceString += `|  ${this.playlist[this.index]}  |\r\n`;
+    interfaceString += `|                 AudioPlayer                 |\r\n`;
+    interfaceString += "+=============================================+\r\n";
+    interfaceString +=  `    Now playing: ${this.playlist[this.index]}\r\n`;
     // Add the bottom border of the interface
-    interfaceString += "+===================+\r\n";
+    interfaceString += "+=============================================+\r\n";
     // Add the control commands for the player
-    interfaceString += "|play | pause | stop|\r\n";
-    interfaceString += "+-------------------+\r\n";
-    interfaceString += "|prev | next | exit |\r\n";
-    interfaceString += "+-------------------+\r\n";
-    interfaceString += "|  repeat  |  help  |\r\n";
-    interfaceString += "+===================+\r\n";
+    interfaceString += "|    play    |     pause     |      stop      |\r\n";
+    interfaceString += "+---------------------------------------------+\r\n";
+    interfaceString += "|    prev    |      next     |      exit      |\r\n";
+    interfaceString += "+---------------------------------------------+\r\n";
+    interfaceString += "|        repeat        |         help         |\r\n";
+    interfaceString += "+=============================================+\r\n";
     // Add a blank line
     interfaceString += "\r\n";
     // Add a message about how to enter commands for the player
@@ -252,3 +274,4 @@ export default class AudioplayerCommand {
     return interfaceString;
   }
 }
+
