@@ -8,6 +8,7 @@ export default class MatrixCommand {
       canvas.style.left = "0";
       canvas.style.zIndex = "1";
       term.element.appendChild(canvas);
+      term.writeln("Entering in The Matrix...")
 
       var ctx = canvas.getContext("2d");
       var symbols = "01";
