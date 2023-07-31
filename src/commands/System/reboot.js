@@ -1,6 +1,6 @@
 export default class RebootCommand {
     async execute(term, params, directory, setDirectory) {
-      term.writeln("NE-DOS will be rebooted in 3 seconds...");
+      term.writeln("NE-DOS will reboot in 3 seconds...");
       await new Promise((a) => setTimeout(a, 3000));
       window.location.reload();
     }
