@@ -48,7 +48,7 @@ export default class AudioplayerCommand {
           case 'help':
             this.help(term);
             break;
-          default:е
+          default:
             term.writeln(`Invalid command: ${params[0]}`);
         }
       }
