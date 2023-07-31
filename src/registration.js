@@ -27,6 +27,7 @@ import StatusCommand from "./commands/System/status";
 import AboutmeCommand from "./commands/Utility/aboutme";
 import DownloadCommand from "./commands/Filesystem/download";
 import UploadCommand from "./commands/Filesystem/upload";
+import MatrixCommand from "./commands/General/matrix";
 import RebootCommand from "./commands/System/reboot";
 
 export const registerAllCommands = () => {
@@ -60,6 +61,7 @@ export const registerAllCommands = () => {
   registeredCommands['confetti'] = new ConfettiCommand();
   registeredCommands['httpcat'] = new HttpcatCommand();
   registeredCommands['httpdog'] = new HttpdogCommand();
+  registeredCommands['matrix'] = new MatrixCommand();
 
   // Utility commands
   registeredCommands['echo'] = new EchoCommand();

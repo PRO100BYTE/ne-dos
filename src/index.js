@@ -32,15 +32,31 @@ BrowserFS.configure({
   window.path = window.require("path");
 
   setTimeout(() => {
-    window.fs.writeFileSync(`/temp/host`, window.location.host);
-    window.fs.writeFileSync(`/temp/language`, window.navigator.language);
-    window.fs.writeFileSync(`/temp/user-agent`, window.navigator.userAgent);
-    window.fs.writeFileSync(`/temp/user-agent.json`, JSON.stringify(window.navigator.userAgentData, null, 2));
+    try {
+      window.fs.writeFileSync(`/temp/host`, window.location.host);
+    } catch (e) {
+    }
+
+    try {
+      window.fs.writeFileSync(`/temp/language`, window.navigator.language);
+    } catch (e) {
+    }
+    
+    try {
+      window.fs.writeFileSync(`/temp/user-agent`, window.navigator.userAgent);
+    } catch (e) {
+    }
+    
+    try {
+      window.fs.writeFileSync(`/temp/user-agent.json`, JSON.stringify(window.navigator.userAgentData, null, 2));
+    } catch (e) {
+    }
+    
 
     try {
       const { downlink, effectiveType, rtt, saveData } = navigator.connection;
       window.fs.writeFileSync(`/temp/connection`, JSON.stringify({ downlink, effectiveType, rtt, saveData }, null, 2));
-    } catch (_) {}
+    } catch (e) {}
   }, 100);
 
   const root = ReactDOM.createRoot(document.getElementById('root'));
