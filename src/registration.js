@@ -29,6 +29,7 @@ import DownloadCommand from "./commands/Filesystem/download";
 import UploadCommand from "./commands/Filesystem/upload";
 import MatrixCommand from "./commands/General/matrix";
 import RebootCommand from "./commands/System/reboot";
+import AudioplayerCommand from "./commands/Utility/audioplayer";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -70,6 +71,7 @@ export const registerAllCommands = () => {
   registeredCommands['geo'] = new GeoCommand();
   registeredCommands['aboutme'] = new AboutmeCommand();
   registeredCommands['weather'] = new WeatherCommand();
+  registeredCommands['audioplayer'] = new AudioplayerCommand();
 
   // ECodeAPI
   registeredCommands['ecode'] = new ECodeAPICommand();
