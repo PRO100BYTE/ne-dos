@@ -27,6 +27,7 @@ import StatusCommand from "./commands/System/status";
 import AboutmeCommand from "./commands/Utility/aboutme";
 import DownloadCommand from "./commands/Filesystem/download";
 import UploadCommand from "./commands/Filesystem/upload";
+import RebootCommand from "./commands/System/reboot";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -38,6 +39,7 @@ export const registerAllCommands = () => {
   registeredCommands['registercommand'] = new RegisterCmdCommand();
   registeredCommands['command'] = new CommandCOMCommand();
   registeredCommands['status'] = new StatusCommand();
+  registeredCommands['reboot'] = new RebootCommand();
 
   // Filesystem commands
   registeredCommands['dir'] = new DirectoryCommand();
