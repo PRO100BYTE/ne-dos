@@ -29,6 +29,7 @@ import DownloadCommand from "./commands/Filesystem/download";
 import UploadCommand from "./commands/Filesystem/upload";
 import MatrixCommand from "./commands/General/matrix";
 import RebootCommand from "./commands/System/reboot";
+import PasswordCommand from "./commands/Utility/password";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -70,6 +71,7 @@ export const registerAllCommands = () => {
   registeredCommands['geo'] = new GeoCommand();
   registeredCommands['aboutme'] = new AboutmeCommand();
   registeredCommands['weather'] = new WeatherCommand();
+  registeredCommands['password'] = new PasswordCommand();
 
   // ECodeAPI
   registeredCommands['ecode'] = new ECodeAPICommand();
