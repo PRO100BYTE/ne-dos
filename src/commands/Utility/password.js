@@ -18,7 +18,7 @@ export default class PasswordCommand {
     
     help(term) {
       term.writeln("Usage: password [length]");
-      term.writeln("Generate a random password of a given length (default is 8)");
+      term.writeln("Generate a random password of a given length. If the argument is not specified, an 8-character password will be generated.");
       term.writeln("Example: password 12");
     }
   }
