@@ -23,7 +23,7 @@ export default class DeleteDirectoryCommand {
   }
 
   description() {
-    return "Delete file";
+    return "Delete directory";
   }
 
   deleteRecursive(directoryPath) {
