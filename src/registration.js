@@ -30,6 +30,7 @@ import UploadCommand from "./commands/Filesystem/upload";
 import MatrixCommand from "./commands/General/matrix";
 import RebootCommand from "./commands/System/reboot";
 import PasswordCommand from "./commands/Utility/password";
+import Base64Command from "./commands/Utility/base64";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -72,6 +73,7 @@ export const registerAllCommands = () => {
   registeredCommands['aboutme'] = new AboutmeCommand();
   registeredCommands['weather'] = new WeatherCommand();
   registeredCommands['password'] = new PasswordCommand();
+  registeredCommands['base64'] = new Base64Command();
 
   // ECodeAPI
   registeredCommands['ecode'] = new ECodeAPICommand();
