@@ -1,8 +1,8 @@
 # Сообщить об уязвимости в NE-DOS
 
-## Нашли уязвимость в NE-DOS? Эта инструкция для вас.
+## Нашли уязвимость или баг в NE-DOS? Эта инструкция для вас.
 
-Чтобы сообщить об уязвимости для NE-DOS, напишите на e-mail: community@pro100byte.ru или в Telegram одному из разработчиков: [@dpudnet](https://t.me/dpudnet) или [@thedayg0ne](https://t.me/thedayg0ne).
+Чтобы сообщить об уязвимости или баге в NE-DOS, напишите на e-mail: community@pro100byte.ru или в Telegram одному из разработчиков: [@dpudnet](https://t.me/dpudnet) или [@thedayg0ne](https://t.me/thedayg0ne).
 
 Если вы обнаружите уязвимость, мы попросим вас следовать согласно практики [скоординированного раскрытия уязвимости](https://en.wikipedia.org/wiki/Responsible_disclosure).
 
