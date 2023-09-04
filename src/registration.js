@@ -31,6 +31,7 @@ import MatrixCommand from "./commands/General/matrix";
 import RebootCommand from "./commands/System/reboot";
 import PasswordCommand from "./commands/Utility/password";
 import Base64Command from "./commands/Utility/base64";
+import TreeCommand from "./commands/Filesystem/tree";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -53,6 +54,7 @@ export const registerAllCommands = () => {
   registeredCommands['rmdir'] = new DeleteDirectoryCommand();
   registeredCommands['download'] = new DownloadCommand();
   registeredCommands['upload'] = new UploadCommand();
+  registeredCommands['tree'] = new TreeCommand();
 
   // General commands
   registeredCommands['credits'] = new CreditsCommand();
