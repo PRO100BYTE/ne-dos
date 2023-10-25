@@ -42,17 +42,19 @@ export default class MatrixCommand {
       }
       draw();
 
-      setTimeout(function() {
-        function fadeOut() {
-          canvas.style.opacity -= 0.01;
-          if (canvas.style.opacity > 0) {
-            setTimeout(fadeOut, 20);
-          } else {
-            term.element.removeChild(canvas);
+      if (!params[1] || params[1].toLowerCase() !== "/infinity") {
+        setTimeout(function() {
+          function fadeOut() {
+            canvas.style.opacity -= 0.01;
+            if (canvas.style.opacity > 0) {
+              setTimeout(fadeOut, 20);
+            } else {
+              term.element.removeChild(canvas);
+            }
           }
-        }
-        fadeOut();
-      }, 5000);
+          fadeOut();
+        }, 5000);
+      }
     }
   
     description() {
