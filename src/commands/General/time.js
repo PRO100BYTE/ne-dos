@@ -16,5 +16,6 @@ export default class TimeCommand {
     help(term) {
         term.writeln("Usage: time");
         term.writeln("This command prints the current time in the format HH:mm:ss.SSS");
+        term.writeln("Sample output: 12:34:30.00") // Current time is 12:34:30:00
     }
 }
