@@ -127,7 +127,7 @@ export default class PlayerCommand {
       plScroll:      0,
       audio:         null,
       objectUrls:    {},
-      vizSensitivity: 'Normal',
+      vizSensitivity: 'Low',
     };
     let isExiting = false;
     let audioEndedHandler = null;
