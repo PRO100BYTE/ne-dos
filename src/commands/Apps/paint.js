@@ -1,4 +1,5 @@
 import path from "path-browserify";
+import { GetDriveRoot } from "../Filesystem/StorageManager";
 
 // ─── ANSI helpers ─────────────────────────────────────────────────────────────
 const ESC = '\x1b';
@@ -56,7 +57,7 @@ export default class PaintCommand {
     term.writeln("  Space       Draw with current brush");
     term.writeln("  b           Cycle brush character");
     term.writeln("  c           Cycle colour");
-    term.writeln("  s           Save canvas to BrowserFS (/paint/)");
+    term.writeln("  s           Save canvas to current drive \\paint");
     term.writeln("  l           Load canvas from BrowserFS");
     term.writeln("  n           New (clear canvas)");
     term.writeln("  Esc         Exit paint");
@@ -71,6 +72,8 @@ export default class PaintCommand {
     // left panel: 5 cols (palette+space), right panel: 4 cols (space+brush+space)
     const CANVAS_W = Math.max(20, COLS - CANVAS_ORIGIN_COL - 5);
     const CANVAS_H = Math.max(8, ROWS - CANVAS_ORIGIN_ROW - 2);
+    const driveRoot = GetDriveRoot(currentDirectory);
+    const paintDir = (driveRoot === '/' ? '/paint' : `${driveRoot}/paint`);
     // Suppress shell input handler while Paint is running
     if (term._setAppMode) term._setAppMode(true);
 
@@ -98,7 +101,7 @@ export default class PaintCommand {
 
     // ── Ensure /paint directory exists ────────────────────────────────────────
     try {
-      if (!window.fs.existsSync('/paint')) window.fs.mkdirSync('/paint');
+      if (!window.fs.existsSync(paintDir)) window.fs.mkdirSync(paintDir);
     } catch {}
 
     // ── Renderers ─────────────────────────────────────────────────────────────
@@ -209,8 +212,8 @@ export default class PaintCommand {
     const saveCanvas = (name) => {
       try {
         const lines = canvas.map(row => row.join(''));
-        window.fs.writeFileSync(`/paint/${name}.txt`, lines.join('\n'));
-        state.status = `Saved to /paint/${name}.txt`;
+        window.fs.writeFileSync(`${paintDir}/${name}.txt`, lines.join('\n'));
+        state.status = `Saved to ${paintDir}/${name}.txt`;
         state.filename = name;
         modified = false;
       } catch (e) {
@@ -220,7 +223,7 @@ export default class PaintCommand {
 
     const loadCanvas = (name) => {
       try {
-        const raw = window.fs.readFileSync(`/paint/${name}.txt`, 'utf8');
+        const raw = window.fs.readFileSync(`${paintDir}/${name}.txt`, 'utf8');
         const lines = raw.split('\n');
         for (let r = 0; r < CANVAS_H; r++) {
           const line = (lines[r] || '').split('');
@@ -229,7 +232,7 @@ export default class PaintCommand {
             colors[r][c] = 0;
           }
         }
-        state.status = `Loaded /paint/${name}.txt`;
+        state.status = `Loaded ${paintDir}/${name}.txt`;
         state.filename = name;
       } catch (e) {
         state.status = `Load error: ${e.message}`;

@@ -1,4 +1,5 @@
 import path from "path-browserify";
+import { GetDriveRoot, PrepareInternal } from "../Filesystem/StorageManager";
 
 // ─── ANSI helpers ─────────────────────────────────────────────────────────────
 const CSI     = '\x1b[';
@@ -30,7 +31,7 @@ export default class PlayerCommand {
   help(term) {
     term.writeln("Usage: player [trackname]");
     term.writeln("");
-    term.writeln("  Upload audio first: upload  (saves to /music/)");
+    term.writeln("  Upload audio first: upload  (saves to current drive \\music)");
     term.writeln("");
     term.writeln("  Space        Play / Pause");
     term.writeln("  ↑ / ↓        Previous / Next track");
@@ -41,6 +42,7 @@ export default class PlayerCommand {
     term.writeln("  s            Toggle shuffle");
     term.writeln("  r            Toggle repeat (one track)");
     term.writeln("  a            Repeat all");
+    term.writeln("  v            Visualizer sensitivity (Low/Normal/High)");
     term.writeln("  Esc          Quit player");
   }
 
@@ -70,8 +72,11 @@ export default class PlayerCommand {
     const CTRL_ROW      = ROWS;                      // controls hint on last row
     const PL_ROWS       = Math.max(2, CTRL_ROW - PL_START_ROW); // playlist entries
 
-    // ── Ensure /music ─────────────────────────────────────────────────────────
-    try { if (!window.fs.existsSync('/music')) window.fs.mkdirSync('/music'); } catch {}
+    const driveRoot = GetDriveRoot(currentDirectory);
+    const musicDir = (driveRoot === '/' ? '/music' : `${driveRoot}/music`);
+
+    // ── Ensure <drive>/music ──────────────────────────────────────────────────
+    try { if (!window.fs.existsSync(musicDir)) window.fs.mkdirSync(musicDir); } catch {}
 
     // ── Build playlist ────────────────────────────────────────────────────────
     let playlist = [];
@@ -79,7 +84,8 @@ export default class PlayerCommand {
     
     // If a track name/path was given as param, try to use it directly or find it in /music
     if (params[1]) {
-      const targetPath = params[1].startsWith('/') ? params[1] : `/music/${params[1]}`;
+      const preparedArg = PrepareInternal(params[1]);
+      const targetPath = preparedArg.startsWith('/') ? preparedArg : path.join(musicDir, preparedArg);
       try {
         const st = window.fs.statSync(targetPath);
         if (!st.isDirectory()) {
@@ -94,14 +100,14 @@ export default class PlayerCommand {
     // If no specific file loaded, scan /music directory
     if (!playlist.length) {
       try {
-        playlist = window.fs.readdirSync('/music')
+        playlist = window.fs.readdirSync(musicDir)
           .filter(f => AUDIO_EXT.some(e => f.toLowerCase().endsWith(e)))
           .sort();
       } catch {}
     } else if (playlist.length === 1) {
       // If we loaded a single file, now also add other files from /music to the playlist
       try {
-        const otherFiles = window.fs.readdirSync('/music')
+        const otherFiles = window.fs.readdirSync(musicDir)
           .filter(f => AUDIO_EXT.some(e => f.toLowerCase().endsWith(e)) && f !== playlist[0])
           .sort();
         playlist = [playlist[0], ...otherFiles];
@@ -121,6 +127,7 @@ export default class PlayerCommand {
       plScroll:      0,
       audio:         null,
       objectUrls:    {},
+      vizSensitivity: 'Normal',
     };
     let isExiting = false;
     let audioEndedHandler = null;
@@ -224,15 +231,18 @@ export default class PlayerCommand {
           const avgNorm = Math.max(0, (avg - 20) / 235);
           const deltaNorm = Math.max(0, (delta - 8) / 247);
           const bandTilt = 1 - (i / VIZ_COLS) * 0.18;
-          const raw = (avgNorm * 0.88 + deltaNorm * 0.26) * bandTilt;
+          const sMul = state.vizSensitivity === 'High' ? 1.28 : (state.vizSensitivity === 'Low' ? 0.82 : 1.0);
+          const raw = (avgNorm * 0.88 + deltaNorm * 0.26) * bandTilt * sMul;
           const target = raw > 0.015 ? Math.pow(raw, 1.22) : 0;
           if (target > frameMax) frameMax = target;
 
           // Fast rise, slower fall for a lively but readable spectrum.
+          const rise = state.vizSensitivity === 'High' ? 0.84 : (state.vizSensitivity === 'Low' ? 0.58 : 0.72);
+          const fall = state.vizSensitivity === 'High' ? 0.32 : (state.vizSensitivity === 'Low' ? 0.18 : 0.24);
           if (target > beatBars[i]) {
-            beatBars[i] += (target - beatBars[i]) * 0.72;
+            beatBars[i] += (target - beatBars[i]) * rise;
           } else {
-            beatBars[i] += (target - beatBars[i]) * 0.24;
+            beatBars[i] += (target - beatBars[i]) * fall;
           }
         }
 
@@ -288,7 +298,7 @@ export default class PlayerCommand {
     const getUrl = (name) => {
       if (state.objectUrls[name]) return state.objectUrls[name];
       try {
-        const filePath = name.startsWith('/') ? name : `/music/${name}`;
+        const filePath = name.startsWith('/') ? name : `${musicDir}/${name}`;
         const buf  = window.fs.readFileSync(filePath);
         const url  = URL.createObjectURL(new Blob([buf]));
         state.objectUrls[name] = url;
@@ -298,7 +308,7 @@ export default class PlayerCommand {
 
     const getFileInfo = (name) => {
       try {
-        const st   = window.fs.statSync(`/music/${name}`);
+        const st   = window.fs.statSync(`${musicDir}/${name}`);
         const ext  = path.extname(name).toUpperCase().slice(1) || '?';
         return { size: st.size, ext };
       } catch { return { size: 0, ext: '?' }; }
@@ -358,7 +368,7 @@ export default class PlayerCommand {
     };
 
     const playPause = () => {
-      if (!playlist.length) { setStatus('No audio files in /music/'); renderAll(); return; }
+      if (!playlist.length) { setStatus(`No audio files in ${musicDir}`); renderAll(); return; }
       if (!state.audio) loadTrack(state.trackIdx);
       if (state.playing) {
         state.audio.pause(); state.playing = false; stopAnim();
@@ -510,7 +520,7 @@ export default class PlayerCommand {
       out += goto(PL_HDR_ROW, 1) + BOLD + FG_CYAN + plTitle.padEnd(COLS, ' ') + RESET;
 
       if (playlist.length === 0) {
-        out += goto(PL_START_ROW, 3) + DIM + FG_WHITE + 'No audio files found in /music/' + RESET;
+        out += goto(PL_START_ROW, 3) + DIM + FG_WHITE + `No audio files found in ${musicDir}` + RESET;
         out += goto(PL_START_ROW + 1, 3) + DIM + FG_WHITE + 'Use the "upload" command to add .mp3 / .ogg / .wav files.' + RESET;
       } else {
         for (let i = 0; i < PL_ROWS; i++) {
@@ -538,7 +548,7 @@ export default class PlayerCommand {
       // ── Controls bar ──────────────────────────────────────────────────────
       out += goto(CTRL_ROW, 1) + BG_BLUE + FG_WHITE;
       const statusText = state.status ||
-        'Space:Play/Pause  ↑↓:Track  ←→:Seek  Shift+←→:Seek30s  +-:Vol  s:Shuffle  r:Rep1  a:Rep∞  Esc:Quit';
+        'Space:Play/Pause  ↑↓:Track  ←→:Seek  Shift+←→:Seek30s  +-:Vol  s:Shuffle  r:Rep1  a:Rep∞  v:Sens  Esc:Quit';
       out += (' ' + statusText).padEnd(COLS, ' ') + RESET;
 
       term.write(out);
@@ -610,6 +620,15 @@ export default class PlayerCommand {
           if (state.repeatAll) state.shuffle = false; // Disable shuffle when repeat all is on
           setStatus(state.repeatAll ? 'Repeat all: ON' : 'Repeat all: OFF');
           renderAll(); break;
+
+        case 'v': case 'V': {
+          state.vizSensitivity = state.vizSensitivity === 'Low'
+            ? 'Normal'
+            : (state.vizSensitivity === 'Normal' ? 'High' : 'Low');
+          setStatus(`Visualizer sensitivity: ${state.vizSensitivity}`);
+          renderAll();
+          break;
+        }
 
         default:
           // Number keys 0-9: jump to track
