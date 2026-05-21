@@ -146,6 +146,8 @@ export default class PlayerCommand {
     let analyser = null;
     let sourceNode = null;
     let freqData = null;
+    let prevFreqData = null;
+    let vizPeak = 0.08;
 
     const cleanupAudioGraph = () => {
       try { if (sourceNode) sourceNode.disconnect(); } catch {}
@@ -153,6 +155,8 @@ export default class PlayerCommand {
       sourceNode = null;
       analyser = null;
       freqData = null;
+      prevFreqData = null;
+      vizPeak = 0.08;
       if (audioCtx) {
         const ctx = audioCtx;
         audioCtx = null;
@@ -173,6 +177,7 @@ export default class PlayerCommand {
         sourceNode.connect(analyser);
         analyser.connect(audioCtx.destination);
         freqData = new Uint8Array(analyser.frequencyBinCount);
+        prevFreqData = new Uint8Array(analyser.frequencyBinCount);
       } catch {
         cleanupAudioGraph();
       }
@@ -193,25 +198,49 @@ export default class PlayerCommand {
       if (analyser && freqData) {
         analyser.getByteFrequencyData(freqData);
         const bins = freqData.length;
+        const nyquist = (audioCtx && audioCtx.sampleRate ? audioCtx.sampleRate : 44100) / 2;
+        const minHz = 30;
+        const maxHz = Math.min(16000, nyquist);
+        const logMin = Math.log(minHz);
+        const logRange = Math.log(maxHz) - logMin;
+        let frameMax = 0;
+
         for (let i = 0; i < VIZ_COLS; i++) {
-          // Log-frequency band mapping: low frequencies get more detail.
+          // Log-frequency bands from 30 Hz..16 kHz spread across full width.
           const from = i / VIZ_COLS;
           const to = (i + 1) / VIZ_COLS;
-          const start = Math.floor((Math.pow(from, 2.2)) * (bins - 1));
-          const end = Math.max(start + 1, Math.floor((Math.pow(to, 2.2)) * (bins - 1)));
+          const fStart = Math.exp(logMin + from * logRange);
+          const fEnd = Math.exp(logMin + to * logRange);
+          const start = Math.max(0, Math.min(bins - 1, Math.floor((fStart / nyquist) * bins)));
+          const end = Math.max(start + 1, Math.min(bins, Math.floor((fEnd / nyquist) * bins)));
           let sum = 0;
+          let flux = 0;
           for (let j = start; j < end; j++) sum += freqData[j];
+          for (let j = start; j < end; j++) flux += Math.abs(freqData[j] - prevFreqData[j]);
           const avg = sum / (end - start);
-          const amplitude = avg / 255;
-          const target = Math.pow(amplitude, 0.62) * VIZ_ROWS;
-          beatBars[i] = beatBars[i] + (target - beatBars[i]) * 0.42;
+          const delta = flux / (end - start);
+
+          // Combine level + change so bars react faster to transients.
+          const raw = (avg / 255) * 0.78 + (delta / 255) * 0.75;
+          if (raw > frameMax) frameMax = raw;
+          beatBars[i] = beatBars[i] + (raw - beatBars[i]) * 0.58;
         }
+
+        // Adaptive gain keeps spectrum spread across width for quiet/loud tracks.
+        vizPeak = Math.max(frameMax, vizPeak * 0.92);
+        const gain = vizPeak > 0.001 ? (1.0 / vizPeak) : 1;
+        for (let i = 0; i < VIZ_COLS; i++) {
+          const scaled = Math.min(1, beatBars[i] * gain * 0.92);
+          beatBars[i] = Math.pow(scaled, 0.86) * VIZ_ROWS;
+        }
+
+        prevFreqData.set(freqData);
       } else {
         beatBars = beatBars.map(v => Math.max(0, v * 0.85));
       }
 
       term.write(hideCursor() + renderViz());
-      animFrame = setTimeout(animateBars, 80);
+      animFrame = setTimeout(animateBars, 50);
     };
 
     // Render the visualizer in-place (no clearScreen, just overwrite the rows)
