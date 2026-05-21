@@ -211,6 +211,12 @@ export default class PlayerCommand {
         const logMin = Math.log(minHz);
         const logRange = Math.log(maxHz) - logMin;
         let frameMax = 0;
+        const profiles = {
+          Low:    { sMul: 0.46, rise: 0.46, fall: 0.14, gainMin: 0.34, gainMax: 0.62, capRows: VIZ_ROWS * 0.58, gate: 0.05 },
+          Normal: { sMul: 0.72, rise: 0.62, fall: 0.20, gainMin: 0.46, gainMax: 0.84, capRows: VIZ_ROWS * 0.82, gate: 0.03 },
+          High:   { sMul: 0.98, rise: 0.78, fall: 0.30, gainMin: 0.56, gainMax: 1.00, capRows: VIZ_ROWS * 0.96, gate: 0.02 },
+        };
+        const profile = profiles[state.vizSensitivity] || profiles.Low;
 
         for (let i = 0; i < VIZ_COLS; i++) {
           // Log-frequency bands from 30 Hz..16 kHz spread across full width.
@@ -228,30 +234,27 @@ export default class PlayerCommand {
           const delta = flux / (end - start);
 
           // Dynamic range shaping: noise gate + transient response without full-height clipping.
-          const avgNorm = Math.max(0, (avg - 20) / 235);
-          const deltaNorm = Math.max(0, (delta - 8) / 247);
+          const avgNorm = Math.max(0, (avg - 24) / 231);
+          const deltaNorm = Math.max(0, (delta - 12) / 243);
           const bandTilt = 1 - (i / VIZ_COLS) * 0.18;
-          const sMul = state.vizSensitivity === 'High' ? 1.28 : (state.vizSensitivity === 'Low' ? 0.82 : 1.0);
-          const raw = (avgNorm * 0.88 + deltaNorm * 0.26) * bandTilt * sMul;
-          const target = raw > 0.015 ? Math.pow(raw, 1.22) : 0;
+          const raw = (avgNorm * 0.82 + deltaNorm * 0.18) * bandTilt * profile.sMul;
+          const target = raw > profile.gate ? Math.pow(raw, 1.30) : 0;
           if (target > frameMax) frameMax = target;
 
           // Fast rise, slower fall for a lively but readable spectrum.
-          const rise = state.vizSensitivity === 'High' ? 0.84 : (state.vizSensitivity === 'Low' ? 0.58 : 0.72);
-          const fall = state.vizSensitivity === 'High' ? 0.32 : (state.vizSensitivity === 'Low' ? 0.18 : 0.24);
           if (target > beatBars[i]) {
-            beatBars[i] += (target - beatBars[i]) * rise;
+            beatBars[i] += (target - beatBars[i]) * profile.rise;
           } else {
-            beatBars[i] += (target - beatBars[i]) * fall;
+            beatBars[i] += (target - beatBars[i]) * profile.fall;
           }
         }
 
-        // Adaptive gain with conservative limits so bars stay distributed, not always maxed out.
+        // Conservative adaptive gain + hard cap by sensitivity profile.
         vizPeak = Math.max(frameMax, vizPeak * 0.985);
-        const gain = Math.max(0.55, Math.min(1.15, 0.9 / Math.max(vizPeak, 0.14)));
+        const gain = Math.max(profile.gainMin, Math.min(profile.gainMax, 0.65 / Math.max(vizPeak, 0.24)));
         for (let i = 0; i < VIZ_COLS; i++) {
-          const scaled = Math.max(0, Math.min(1, beatBars[i] * gain - 0.02));
-          beatBars[i] = scaled * VIZ_ROWS;
+          const scaled = Math.max(0, Math.min(1, beatBars[i] * gain));
+          beatBars[i] = Math.min(profile.capRows, scaled * VIZ_ROWS);
         }
 
         prevFreqData.set(freqData);
