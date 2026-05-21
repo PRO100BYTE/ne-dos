@@ -11,10 +11,18 @@ export default class SnakeCommand {
 
   execute(term) {
     return new Promise((resolve) => {
-      const w = Math.max(20, Math.min(60, term.cols - 2));
-      const h = Math.max(10, Math.min(24, term.rows - 4));
+      const w = Math.max(28, Math.min(term.cols - 2, 96));
+      const h = Math.max(14, Math.min(term.rows - 4, 36));
       let dir = { x: 1, y: 0 };
-      let snake = [{ x: Math.floor(w / 2), y: Math.floor(h / 2) }];
+      const cx = Math.floor(w / 2);
+      const cy = Math.floor(h / 2);
+      // Start with a 4-segment snake for better gameplay pacing.
+      let snake = [
+        { x: cx, y: cy },
+        { x: cx - 1, y: cy },
+        { x: cx - 2, y: cy },
+        { x: cx - 3, y: cy },
+      ];
       let food = { x: 5, y: 5 };
       let score = 0;
       let timer = null;

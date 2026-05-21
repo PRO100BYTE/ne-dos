@@ -11,8 +11,8 @@ export default class TetrisCommand {
 
   execute(term) {
     return new Promise((resolve) => {
-      const W = 10;
-      const H = 18;
+      const W = Math.max(12, Math.min(18, Math.floor((term.cols - 4) / 2)));
+      const H = Math.max(20, Math.min(30, term.rows - 5));
       const board = Array.from({ length: H }, () => Array(W).fill(0));
       const pieces = [
         [[1,1,1,1]],
