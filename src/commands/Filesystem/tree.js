@@ -3,7 +3,14 @@ import { ResolveInCurrentDrive, FormatDirectory } from "./StorageManager";
 
 export default class TreeCommand {
   execute(term, params, directory, setDirectory) {
-    const target = params[1] || '.';
+    const args = params.slice(1);
+    const flags = args.filter(a => a.startsWith('/'));
+    const showFiles = flags.includes('/f');
+    const depthFlag = flags.find(f => f.startsWith('/d:'));
+    const filterFlag = flags.find(f => f.startsWith('/filter:'));
+    const filterRaw = filterFlag ? filterFlag.substring(8) : '';
+    const nameFilter = filterRaw ? filterRaw.toLowerCase() : '';
+    const target = args.find(a => !a.startsWith('/')) || '.';
     const resolvedDir = ResolveInCurrentDrive(directory, target);
 
     if (!window.fs.existsSync(resolvedDir)) {
@@ -15,7 +22,7 @@ export default class TreeCommand {
       return;
     }
 
-    const parseDepth = Number.parseInt(params[2], 10);
+    const parseDepth = Number.parseInt(depthFlag ? depthFlag.substring(3) : '', 10);
     const maxDepth = Number.isFinite(parseDepth) && parseDepth >= 0 ? parseDepth : Infinity;
     let folders = 0;
     let files = 0;
@@ -57,11 +64,13 @@ export default class TreeCommand {
 
         if (isDir) {
           folders++;
-          term.writeln(prefix + branch + entry + "/");
+          const printDir = !nameFilter || entry.toLowerCase().includes(nameFilter);
+          if (printDir) term.writeln(prefix + branch + entry + "/");
           if (depth < maxDepth) {
             walk(fullPath, nextPrefix, depth + 1);
           }
-        } else {
+        } else if (showFiles) {
+          if (nameFilter && !entry.toLowerCase().includes(nameFilter)) return;
           files++;
           term.writeln(prefix + branch + entry);
         }
@@ -75,15 +84,16 @@ export default class TreeCommand {
   }
 
   description() {
-    return "Display directory tree";
+    return "Display directory tree (/f, /d:<depth>, /filter:<text>)";
   }
 
   help(term) {
-    term.writeln("Usage: tree [path] [maxDepth]");
+    term.writeln("Usage: tree [path] [/f] [/d:<depth>] [/filter:<text>]");
     term.writeln("Displays files and folders as a tree.");
     term.writeln("Examples:");
     term.writeln("  tree");
-    term.writeln("  tree . 2");
-    term.writeln("  tree C:\\projects 3");
+    term.writeln("  tree /f");
+    term.writeln("  tree . /f /d:2");
+    term.writeln("  tree C:\\projects /f /filter:readme");
   }
 }

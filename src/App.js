@@ -41,6 +41,9 @@ function App() {
   const FULLSCREEN_RESTORE_KEY = 'nedos_restore_fullscreen_after_reload';
 
   useEffect(() => {
+    if (!window.__nedosEnv) window.__nedosEnv = { PATH: 'C:\\;C:\\BIN' };
+    if (!window.__nedosAliases) window.__nedosAliases = {};
+
     // Dev hot-reload safety: stop any previously running TUI app/audio.
     try {
       if (typeof window.__nedosActiveAppCleanup === 'function') {
@@ -118,14 +121,27 @@ function App() {
 
     // Command history
     const history = [];
+    window.__nedosHistory = history;
     let historyIndex = -1;
     let savedInput = '';
+
+    const buildPrompt = () => {
+      const custom = window.__nedosPromptTemplate;
+      if (!custom || !custom.trim()) return `${FormatDirectory(currentDirectory)}>`;
+      return custom
+        .replaceAll('$P', FormatDirectory(currentDirectory))
+        .replaceAll('$G', '>')
+        .replaceAll('$L', '<')
+        .replaceAll('$B', '|')
+        .replaceAll('$S', ' ')
+        .replaceAll('$T', dateFormat(new Date(), 'HH:MM:ss'));
+    };
 
     const prompt = (term) => {
       setCommand("");
       historyIndex = -1;
       savedInput = '';
-      term.write(`\r\n${FormatDirectory(currentDirectory)}>`);
+      term.write(`\r\n${buildPrompt()}`);
     }
 
     // TUI apps call term.prompt() to restore the shell prompt after exiting
@@ -758,7 +774,7 @@ function App() {
     const replaceCurrentInput = (newValue) => {
       // Erase current input: move cursor back and clear to end of line
       term.write('\r\x1b[K');
-      term.write(`${FormatDirectory(currentDirectory)}>${newValue}`);
+      term.write(`${buildPrompt()}${newValue}`);
       setCommand(newValue);
     };
 
@@ -815,7 +831,18 @@ function App() {
 
     const runCommand = async () => {
       try {
-        let parts = command.split(" ");
+        let cmdText = command;
+        const cmdTrimmed = cmdText.trim();
+        if (cmdTrimmed) {
+          const firstSpace = cmdTrimmed.indexOf(' ');
+          const aliasKey = (firstSpace === -1 ? cmdTrimmed : cmdTrimmed.slice(0, firstSpace)).toLowerCase();
+          const aliasValue = window.__nedosAliases && window.__nedosAliases[aliasKey];
+          if (aliasValue) {
+            cmdText = aliasValue + (firstSpace === -1 ? '' : ' ' + cmdTrimmed.slice(firstSpace + 1));
+          }
+        }
+
+        let parts = cmdText.split(" ");
         term.write('\r\n');
 
         const cpuMode = getBiosSetting('cpu_speed', 0);
@@ -825,7 +852,7 @@ function App() {
         }
 
         // Save non-empty commands to history (skip duplicate of last entry)
-        const trimmed = command.trim();
+        const trimmed = cmdText.trim();
         if (trimmed && (history.length === 0 || history[history.length - 1] !== trimmed)) {
           history.push(trimmed);
         }

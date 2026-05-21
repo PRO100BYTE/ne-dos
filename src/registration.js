@@ -31,15 +31,41 @@ import RenameCommand from "./commands/Filesystem/rename";
 import CopyCommand from "./commands/Filesystem/copy";
 import MoveCommand from "./commands/Filesystem/move";
 import TreeCommand from "./commands/Filesystem/tree";
+import XCopyCommand from "./commands/Filesystem/xcopy";
+import AttribCommand from "./commands/Filesystem/attrib";
+import FindCommand from "./commands/Filesystem/find";
+import FindStrCommand from "./commands/Filesystem/findstr";
+import FCCommand from "./commands/Filesystem/fc";
+import ChkDskCommand from "./commands/Filesystem/chkdsk";
 import MatrixCommand from "./commands/General/matrix";
 import RebootCommand from "./commands/System/reboot";
 import PasswordCommand from "./commands/Utility/password";
 import Base64Command from "./commands/Utility/base64";
+import MoreCommand from "./commands/Utility/more";
+import SortCommand from "./commands/Utility/sort";
+import IpConfigCommand from "./commands/Utility/ipconfig";
+import NetStatCommand from "./commands/Utility/netstat";
+import PingCommand from "./commands/Utility/ping";
+import TraceRouteCommand from "./commands/Utility/traceroute";
+import CalendarCommand from "./commands/Utility/calendar";
+import CalcCommand from "./commands/Utility/calc";
+import NotesCommand from "./commands/Utility/notes";
 import NcCommand from "./commands/Apps/nc";
 import PaintCommand from "./commands/Apps/paint";
 import PlayerCommand from "./commands/Apps/player";
 import EditCommand from "./commands/Apps/edit";
+import ListCommand from "./commands/Apps/list";
+import SnakeCommand from "./commands/Apps/snake";
+import TetrisCommand from "./commands/Apps/tetris";
+import TelnetCommand from "./commands/Apps/telnet";
+import AnsiDemoCommand from "./commands/Apps/ansidemo";
 import FullscreenCommand from "./commands/System/fullscreen";
+import MemCommand from "./commands/System/mem";
+import SetCommand from "./commands/System/set";
+import PathCommand from "./commands/System/path";
+import PromptCommand from "./commands/System/prompt";
+import DosKeyCommand from "./commands/System/doskey";
+import ModeCommand from "./commands/System/mode";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -53,6 +79,12 @@ export const registerAllCommands = () => {
   registeredCommands['status'] = new StatusCommand();
   registeredCommands['reboot'] = new RebootCommand();
   registeredCommands['fullscreen'] = new FullscreenCommand();
+  registeredCommands['mem'] = new MemCommand();
+  registeredCommands['set'] = new SetCommand();
+  registeredCommands['path'] = new PathCommand();
+  registeredCommands['prompt'] = new PromptCommand();
+  registeredCommands['doskey'] = new DosKeyCommand();
+  registeredCommands['mode'] = new ModeCommand();
 
   // Filesystem commands
   registeredCommands['dir'] = new DirectoryCommand();
@@ -67,6 +99,12 @@ export const registerAllCommands = () => {
   registeredCommands['copy'] = new CopyCommand();
   registeredCommands['move'] = new MoveCommand();
   registeredCommands['tree'] = new TreeCommand();
+  registeredCommands['xcopy'] = new XCopyCommand();
+  registeredCommands['attrib'] = new AttribCommand();
+  registeredCommands['find'] = new FindCommand();
+  registeredCommands['findstr'] = new FindStrCommand();
+  registeredCommands['fc'] = new FCCommand();
+  registeredCommands['chkdsk'] = new ChkDskCommand();
 
   // General commands
   registeredCommands['credits'] = new CreditsCommand();
@@ -88,6 +126,15 @@ export const registerAllCommands = () => {
   registeredCommands['weather'] = new WeatherCommand();
   registeredCommands['password'] = new PasswordCommand();
   registeredCommands['base64'] = new Base64Command();
+  registeredCommands['more'] = new MoreCommand();
+  registeredCommands['sort'] = new SortCommand();
+  registeredCommands['ipconfig'] = new IpConfigCommand();
+  registeredCommands['netstat'] = new NetStatCommand();
+  registeredCommands['ping'] = new PingCommand();
+  registeredCommands['traceroute'] = new TraceRouteCommand();
+  registeredCommands['calendar'] = new CalendarCommand();
+  registeredCommands['calc'] = new CalcCommand();
+  registeredCommands['notes'] = new NotesCommand();
 
   // ECodeAPI
   registeredCommands['ecode'] = new ECodeAPICommand();
@@ -97,6 +144,11 @@ export const registerAllCommands = () => {
   registeredCommands['paint'] = new PaintCommand();
   registeredCommands['player'] = new PlayerCommand();
   registeredCommands['edit'] = new EditCommand();
+  registeredCommands['list'] = new ListCommand();
+  registeredCommands['snake'] = new SnakeCommand();
+  registeredCommands['tetris'] = new TetrisCommand();
+  registeredCommands['telnet'] = new TelnetCommand();
+  registeredCommands['ansidemo'] = new AnsiDemoCommand();
 
   return registeredCommands;
 };
