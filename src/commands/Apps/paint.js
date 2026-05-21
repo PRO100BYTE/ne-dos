@@ -63,6 +63,7 @@ export default class PaintCommand {
   }
 
   execute(term, params, currentDirectory, setDirectory) {
+    return new Promise((resolve) => {
     // Use actual terminal dimensions
     const COLS = term.cols;
     const ROWS = term.rows;
@@ -264,7 +265,7 @@ export default class PaintCommand {
           if (term._setAppMode) term._setAppMode(false);
           disposable.dispose();
           term.write(showCursor() + clearScreen());
-          if (term.prompt) term.prompt();
+          resolve();
           return;
 
         // Movement
@@ -335,5 +336,6 @@ export default class PaintCommand {
 
       render(needFullRedraw);
     });
+    }); // end Promise
   }
 }

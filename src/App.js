@@ -71,20 +71,120 @@ function App() {
     // TUI apps call term.prompt() to restore the shell prompt after exiting
     term.prompt = () => prompt(term);
 
+    // ── BIOS boot sequence ────────────────────────────────────────────────────
+    const CSI = '\x1b[';
+    const RESET   = CSI + '0m';
+    const BOLD    = CSI + '1m';
+    const DIM     = CSI + '2m';
+    const FG_WHITE  = CSI + '37m';
+    const FG_CYAN   = CSI + '36m';
+    const FG_YELLOW = CSI + '33m';
+    const FG_GREEN  = CSI + '32m';
+    const FG_RED    = CSI + '31m';
+    const BG_BLACK  = CSI + '40m';
+    const BG_BLUE   = CSI + '44m';
+    const goto = (r, c) => `${CSI}${r};${c}H`;
+    const clearScreen = () => `${CSI}2J${CSI}H`;
+    const hideCursor  = () => `${CSI}?25l`;
+    const showCursor  = () => `${CSI}?25h`;
+
+    const LOGO = [
+      '  ██████╗ ██████╗  ██████╗  ██╗ ██████╗  ██████╗ ██████╗ ██╗   ██╗████████╗███████╗',
+      '  ██╔══██╗██╔══██╗██╔═══██╗███║██╔═████╗██╔═████╗██╔══██╗╚██╗ ██╔╝╚══██╔══╝██╔════╝',
+      '  ██████╔╝██████╔╝██║   ██║╚██║██║██╔██║██║██╔██║██████╔╝ ╚████╔╝    ██║   █████╗  ',
+      '  ██╔═══╝ ██╔══██╗██║   ██║ ██║████╔╝██║████╔╝██║██╔══██╗  ╚██╔╝     ██║   ██╔══╝  ',
+      '  ██║     ██║  ██║╚██████╔╝ ██║╚██████╔╝╚██████╔╝██████╔╝   ██║      ██║   ███████╗',
+      '  ╚═╝     ╚═╝  ╚═╝ ╚═════╝  ╚═╝ ╚═════╝  ╚═════╝ ╚═════╝   ╚═╝      ╚═╝   ╚══════╝',
+      '                                    T E A M',
+    ];
+
+    const BIOS_CHECKS = [
+      { label: 'CPU Type',        value: 'NE-CPU 8086 @ 666 MHz',             ok: true  },
+      { label: 'Math Coprocessor',value: 'Detected',                          ok: true  },
+      { label: 'Memory Test',     value: '640 KB OK',                         ok: true  },
+      { label: 'Extended Memory', value: '1048576 KB OK',                     ok: true  },
+      { label: 'Bus Type',        value: 'ISA/PCI',                           ok: true  },
+      { label: 'Display Type',    value: 'xterm-256color CGA/VGA Compatible', ok: true  },
+      { label: 'Primary HDD',     value: 'BrowserFS IndexedDB Virtual Drive', ok: true  },
+      { label: 'Secondary HDD',   value: 'Not detected',                      ok: false },
+      { label: 'BrowserFS',       value: 'Mounted at /',                      ok: true  },
+      { label: 'Serial Port',     value: 'COM1 – Not available',              ok: false },
+      { label: 'BIOS Version',    value: `PRO100BYTE BIOS v${window['VERSION'] || '1.3.0'} / ${window['BUILD_DATE'] || 'N/A'}`, ok: true },
+    ];
+
+    let biosAborted = false;
+
+    const runBios = () => new Promise((resolveBios) => {
+      term.write(hideCursor() + clearScreen());
+
+      // Draw logo (centered, cyan)
+      const COLS = term.cols;
+      const logoStart = Math.max(1, Math.floor((COLS - 84) / 2));
+      let out = '';
+      LOGO.forEach((line, i) => {
+        out += goto(2 + i, 1) + BOLD + FG_CYAN + line.padEnd(COLS, ' ') + RESET;
+      });
+      out += goto(9, 1) + DIM + FG_WHITE + '─'.repeat(COLS) + RESET;
+      out += goto(10, 2) + BOLD + FG_WHITE + 'NE-BIOS Version 1.0  Copyright (C) PRO100BYTE Team' + RESET;
+      out += goto(11, 2) + DIM + FG_WHITE + 'All Rights Reserved.' + RESET;
+      out += goto(12, 1) + DIM + FG_WHITE + '─'.repeat(COLS) + RESET;
+      term.write(out);
+
+      // Draw checks one by one with delay
+      let row = 14;
+      let idx = 0;
+
+      // Keypress handler — any key skips BIOS
+      const skipDisposable = term.onData(() => {
+        biosAborted = true;
+        skipDisposable.dispose();
+        resolveBios();
+      });
+
+      const drawNext = () => {
+        if (biosAborted) return;
+        if (idx >= BIOS_CHECKS.length) {
+          // All checks done — draw bottom bar and wait 1.5s
+          term.write(
+            goto(row + 1, 1) + DIM + FG_WHITE + '─'.repeat(COLS) + RESET +
+            goto(row + 2, 2) + BG_BLUE + FG_WHITE + BOLD +
+            ' Press any key to continue, or wait...'.padEnd(COLS - 2, ' ') + RESET
+          );
+          setTimeout(() => {
+            if (!biosAborted) { skipDisposable.dispose(); resolveBios(); }
+          }, 1500);
+          return;
+        }
+
+        const chk = BIOS_CHECKS[idx++];
+        const label  = chk.label.padEnd(22, '.');
+        const status = chk.ok ? (BOLD + FG_GREEN + '[ OK ]' + RESET) : (DIM + FG_RED + '[SKIP]' + RESET);
+        term.write(goto(row++, 2) + FG_WHITE + label + ' ' + status + ' ' + DIM + FG_WHITE + chk.value + RESET);
+        setTimeout(drawNext, 60);
+      };
+
+      setTimeout(drawNext, 200);
+    });
+
     const date = new Date();
     const d = dateFormat(date, "ddd m-dd-yyyy");
     const t = dateFormat(date, "HH:MM:ss.L");
 
-    term.writeln(`Current date is ${d}`);
-    term.writeln(`Current time is ${t}`);
-    term.writeln('');
-    term.writeln('');
-    term.writeln('The NE-DOS Personal Computer DOS');
-    term.writeln(`Version ${window['VERSION']} (C) Copyright PRO100BYTE Team`);
-    term.writeln(`Built: ${window['BUILD_DATE']}`);
-    term.writeln('');
+    const startShell = () => {
+      term.write(showCursor() + clearScreen());
+      term.writeln(`Current date is ${d}`);
+      term.writeln(`Current time is ${t}`);
+      term.writeln('');
+      term.writeln('');
+      term.writeln('The NE-DOS Personal Computer DOS');
+      term.writeln(`Version ${window['VERSION']} (C) Copyright PRO100BYTE Team`);
+      term.writeln(`Built: ${window['BUILD_DATE']}`);
+      term.writeln('');
 
-    prompt(term);
+      prompt(term);
+    };
+
+    runBios().then(startShell);
 
     // Helper: replace current command line on terminal
     const replaceCurrentInput = (newValue) => {
@@ -157,7 +257,8 @@ function App() {
         }
 
         switch (parts[0]) {
-          default:
+          default: {
+            if (!parts[0]) break; // empty command — do nothing
             let app = window.registeredCommands[parts[0].toLowerCase()];
 
             if (app) {
@@ -165,7 +266,8 @@ function App() {
             } else {
               term.writeln(`Bad command`);
             }
-            break
+            break;
+          }
           case 'help':
           case '?':
             if (parts.length < 2) {

@@ -49,12 +49,13 @@ export default class NcCommand {
   }
 
   execute(term, params, currentDirectory, setDirectory) {
+    return new Promise((resolve) => {
     const COLS     = term.cols;
     const ROWS     = term.rows;
-    const PANEL_W  = Math.floor(COLS / 2) - 2; // inner width between │ and │
-    const listRows = ROWS - 4;                  // file-list rows per panel
+    const PANEL_W  = Math.floor(COLS / 2) - 2;
+    const listRows = ROWS - 4;
     const SEP_COL  = PANEL_W + 2;
-    const R_START  = PANEL_W + 3;               // right panel start col
+    const R_START  = PANEL_W + 3;
 
     if (term._setAppMode) term._setAppMode(true);
 
@@ -347,14 +348,13 @@ export default class NcCommand {
 
       // ── Normal navigation ──────────────────────────────────────────────────
       switch (key) {
-        // Quit
-        case '\x1b':
+        // Quit — F10 only (bare Esc is start of escape sequences, do not use it as quit)
         case '\x1b[21~': // F10
           if (term._setAppMode) term._setAppMode(false);
           disposable.dispose();
           term.write(showCursor() + clearScreen());
           setDirectory(PrepareInternal(ap().dir));
-          if (term.prompt) term.prompt();
+          resolve();
           return;
 
         // Cursor movement
@@ -452,6 +452,7 @@ export default class NcCommand {
 
       render();
     });
+    }); // end Promise
   }
 }
 

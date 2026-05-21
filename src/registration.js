@@ -34,6 +34,7 @@ import Base64Command from "./commands/Utility/base64";
 import NcCommand from "./commands/Apps/nc";
 import PaintCommand from "./commands/Apps/paint";
 import PlayerCommand from "./commands/Apps/player";
+import EditCommand from "./commands/Apps/edit";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -85,6 +86,7 @@ export const registerAllCommands = () => {
   registeredCommands['nc'] = new NcCommand();
   registeredCommands['paint'] = new PaintCommand();
   registeredCommands['player'] = new PlayerCommand();
+  registeredCommands['edit'] = new EditCommand();
 
   return registeredCommands;
 };

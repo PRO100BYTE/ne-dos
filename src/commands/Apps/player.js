@@ -45,6 +45,7 @@ export default class PlayerCommand {
   }
 
   execute(term, params, currentDirectory, setDirectory) {
+    return new Promise((resolve) => {
     const COLS = term.cols;
     const ROWS = term.rows;
 
@@ -394,20 +395,24 @@ export default class PlayerCommand {
       if (state.playing) renderProgressRow();
     }, 1000);
 
+    // ── Exit helper ───────────────────────────────────────────────────────────
+    const doExit = () => {
+      stopAnim();
+      clearInterval(progressInterval);
+      if (state.audio) { state.audio.pause(); state.audio.src = ''; }
+      Object.values(state.objectUrls).forEach(u => URL.revokeObjectURL(u));
+      if (disposable) disposable.dispose();
+      if (term._setAppMode) term._setAppMode(false);
+      term.write(showCursor() + clearScreen());
+      resolve();
+    };
+
     // ── Input handler ─────────────────────────────────────────────────────────
-    const disposable = term.onData((key) => {
+    let disposable;
+    disposable = term.onData((key) => {
       switch (key) {
         // Quit
-        case '\x1b':
-          stopAnim();
-          clearInterval(progressInterval);
-          if (state.audio) { state.audio.pause(); state.audio.src = ''; }
-          Object.values(state.objectUrls).forEach(u => URL.revokeObjectURL(u));
-          if (term._setAppMode) term._setAppMode(false);
-          disposable.dispose();
-          term.write(showCursor() + clearScreen());
-          if (term.prompt) term.prompt();
-          return;
+        case '\x1b': doExit(); return;
 
         case ' ':                  playPause();                                break;
         case '\x1b[A':             prevTrack();                                break; // Up
@@ -445,10 +450,9 @@ export default class PlayerCommand {
           break;
       }
     });
+    }); // end Promise
   }
 }
-
-const RESET = CSI + '0m';
 const BOLD = CSI + '1m';
 const DIM = CSI + '2m';
 const REVERSE = CSI + '7m';
