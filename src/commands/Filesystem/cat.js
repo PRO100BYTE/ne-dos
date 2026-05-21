@@ -1,5 +1,5 @@
 import path from "path-browserify";
-import {PrepareInternal} from "./StorageManager";
+import { ResolveInCurrentDrive } from "./StorageManager";
 
 export default class CatCommand {
   execute(term, params, directory, setDirectory) {
@@ -8,9 +8,7 @@ export default class CatCommand {
       term.writeln("No such file");
       return;
     }
-    param = PrepareInternal(param);
-
-    const dir = path.resolve(directory, param);
+    const dir = ResolveInCurrentDrive(directory, param);
     if (!window.fs.existsSync(dir)) {
       term.writeln("No such file");
       return;

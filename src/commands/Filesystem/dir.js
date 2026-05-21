@@ -1,31 +1,31 @@
 import path from "path-browserify";
 import bytes from "bytes";
 import columnify from "columnify";
-import {PrepareInternal} from "./StorageManager";
+import { ResolveInCurrentDrive, FormatDirectory } from "./StorageManager";
 
 export default class DirectoryCommand {
   execute(term, params, directory, setDirectory) {
     let param = params[1];
     if (!param || param === "") {
-      param = directory;
-    } else {
-      param = PrepareInternal(param);
+      param = '.';
     }
 
-    if (!window.fs.existsSync(path.resolve(directory, param))) {
+    const resolvedDir = ResolveInCurrentDrive(directory, param);
+
+    if (!window.fs.existsSync(resolvedDir)) {
       term.writeln("No such directory");
       return;
     }
-    if (!window.fs.statSync(path.resolve(directory, param)).isDirectory()) {
+    if (!window.fs.statSync(resolvedDir).isDirectory()) {
       term.writeln("No such directory");
       return;
     }
 
-    const entries = window.fs.readdirSync(path.resolve(directory, param)).sort();
+    const entries = window.fs.readdirSync(resolvedDir).sort();
     const data = [];
 
     entries.forEach(entry => {
-      const filename = path.resolve(directory, param, entry);
+      const filename = path.resolve(resolvedDir, entry);
       const stat = window.fs.statSync(filename);
 
       let filetype;
@@ -56,7 +56,7 @@ export default class DirectoryCommand {
     });
 
     term.writeln('');
-    term.writeln(` Directory: C:${path.resolve(directory, param).replaceAll("/", "\\")}`)
+    term.writeln(` Directory: ${FormatDirectory(resolvedDir)}`)
     term.writeln('');
 
     term.writeln(columnify(data, {

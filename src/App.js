@@ -6,7 +6,7 @@ import "xterm/css/xterm.css"
 import {FitAddon} from "xterm-addon-fit";
 import dateFormat from "dateformat";
 import {registerAllCommands} from "./registration";
-import {FormatDirectory} from "./commands/Filesystem/StorageManager";
+import {FormatDirectory, GetDriveRoot} from "./commands/Filesystem/StorageManager";
 import HelpCommand from "./commands/System/help";
 
 const GlobalStyles = createGlobalStyle`
@@ -55,6 +55,11 @@ function App() {
     let currentDirectory = '/';
     let command = '';
     const setCommand = v => command = v;
+    const setCurrentDirectory = (dir) => {
+      currentDirectory = dir;
+      window.__nedosCurrentDriveRoot = GetDriveRoot(currentDirectory);
+    };
+    window.__nedosCurrentDriveRoot = GetDriveRoot(currentDirectory);
 
     // Command history
     const history = [];
@@ -242,7 +247,7 @@ function App() {
         // RAM Disk mode: isolated in-memory tempfs, wiped each boot
         if (!window.fs.existsSync('/tempfs')) window.fs.mkdirSync('/tempfs');
         clearDirRecursive('/tempfs');
-        currentDirectory = '/tempfs';
+        setCurrentDirectory('/tempfs');
         return 'RAM Disk ready at /tempfs';
       }
       if (idx === 2) {
@@ -257,10 +262,10 @@ function App() {
         window.fs.writeFileSync('/netboot/remote_boot.txt', bootFile);
         window.fs.writeFileSync('/netboot/dhcp_lease.json', JSON.stringify({ ip, gateway, dns: ['1.1.1.1', '8.8.8.8'], leaseSeconds: 3600, mac }, null, 2));
         window.fs.writeFileSync('/netboot/pxe_args.txt', `BOOTIF=${mac}\nIP=${ip}\nNEXT_SERVER=${tftp}\nBOOTFILE=pxelinux.0\n`);
-        currentDirectory = '/netboot';
+        setCurrentDirectory('/netboot');
         return 'Network boot image prepared in /netboot';
       }
-      currentDirectory = '/';
+      setCurrentDirectory('/');
       return 'Booted from BrowserFS /';
     };
 
@@ -650,7 +655,7 @@ function App() {
             let app = window.registeredCommands[parts[0].toLowerCase()];
 
             if (app) {
-              await app.execute(term, parts, currentDirectory, (e) => currentDirectory = e);
+              await app.execute(term, parts, currentDirectory, setCurrentDirectory);
             } else {
               term.writeln(`Bad command`);
             }

@@ -1,5 +1,5 @@
 import path from "path-browserify";
-import {PrepareInternal} from "./StorageManager";
+import {PrepareInternal, ResolveInCurrentDrive} from "./StorageManager";
 
 export default class DownloadCommand {
   async execute(term, params, directory, setDirectory) {
@@ -17,9 +17,9 @@ export default class DownloadCommand {
       const buffer = await (await fetch(url.href)).arrayBuffer();
       // const data = window['buffer'].from(buffer);
       const data = window.Buffer.from(buffer);
-      window.fs.writeFileSync(path.resolve(directory, filename), data);
+      window.fs.writeFileSync(ResolveInCurrentDrive(directory, filename), data);
     } else {
-      filename = path.resolve(directory, filename);
+      filename = ResolveInCurrentDrive(directory, filename);
       if (!window.fs.existsSync(filename)) {
         term.writeln("No such file");
         return;
