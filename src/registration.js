@@ -31,6 +31,9 @@ import MatrixCommand from "./commands/General/matrix";
 import RebootCommand from "./commands/System/reboot";
 import PasswordCommand from "./commands/Utility/password";
 import Base64Command from "./commands/Utility/base64";
+import NcCommand from "./commands/Apps/nc";
+import PaintCommand from "./commands/Apps/paint";
+import PlayerCommand from "./commands/Apps/player";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -77,6 +80,11 @@ export const registerAllCommands = () => {
 
   // ECodeAPI
   registeredCommands['ecode'] = new ECodeAPICommand();
+
+  // TUI Applications
+  registeredCommands['nc'] = new NcCommand();
+  registeredCommands['paint'] = new PaintCommand();
+  registeredCommands['player'] = new PlayerCommand();
 
   return registeredCommands;
 };

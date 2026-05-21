@@ -1,0 +1,330 @@
+import path from "path-browserify";
+
+// ─── ANSI helpers ─────────────────────────────────────────────────────────────
+const ESC = '\x1b';
+const CSI = ESC + '[';
+const RESET = CSI + '0m';
+const BOLD = CSI + '1m';
+const FG_WHITE = CSI + '37m';
+const FG_CYAN = CSI + '36m';
+const FG_YELLOW = CSI + '33m';
+const FG_GREEN = CSI + '32m';
+const FG_RED = CSI + '31m';
+const FG_BLACK = CSI + '30m';
+const FG_MAGENTA = CSI + '35m';
+const FG_BLUE = CSI + '34m';
+const BG_BLACK = CSI + '40m';
+const BG_BLUE = CSI + '44m';
+const BG_CYAN = CSI + '46m';
+const BG_GREEN = CSI + '42m';
+const BG_RED = CSI + '41m';
+const BG_MAGENTA = CSI + '45m';
+const BG_YELLOW = CSI + '43m';
+const BG_WHITE = CSI + '47m';
+const REVERSE = CSI + '7m';
+
+const goto = (r, c) => `${CSI}${r};${c}H`;
+const clearScreen = () => `${CSI}2J${CSI}H`;
+const hideCursor = () => `${CSI}?25l`;
+const showCursor = () => `${CSI}?25h`;
+
+// ─── Canvas dimensions ────────────────────────────────────────────────────────
+const CANVAS_W = 60;
+const CANVAS_H = 18;
+const CANVAS_ORIGIN_ROW = 4;
+const CANVAS_ORIGIN_COL = 12;
+const ROWS = 24;
+
+// ─── Palette ──────────────────────────────────────────────────────────────────
+const PALETTE = [
+  { fg: FG_WHITE,   bg: BG_BLACK,   label: '█', name: 'White/Blk' },
+  { fg: FG_RED,     bg: BG_BLACK,   label: '█', name: 'Red/Blk'   },
+  { fg: FG_GREEN,   bg: BG_BLACK,   label: '█', name: 'Grn/Blk'   },
+  { fg: FG_YELLOW,  bg: BG_BLACK,   label: '█', name: 'Yel/Blk'   },
+  { fg: FG_BLUE,    bg: BG_BLACK,   label: '█', name: 'Blu/Blk'   },
+  { fg: FG_MAGENTA, bg: BG_BLACK,   label: '█', name: 'Mag/Blk'   },
+  { fg: FG_CYAN,    bg: BG_BLACK,   label: '█', name: 'Cyn/Blk'   },
+  { fg: FG_BLACK,   bg: BG_WHITE,   label: '█', name: 'Blk/Wht'   },
+];
+
+// ─── Brushes ──────────────────────────────────────────────────────────────────
+const BRUSHES = ['█', '▓', '▒', '░', '■', '●', '◆', '★', '▲', '+', '-', '|', '.', '#', '@'];
+
+// ─── Paint command ────────────────────────────────────────────────────────────
+export default class PaintCommand {
+  description() { return "ASCII paint — draw with block characters"; }
+  help(term) {
+    term.writeln("Usage: paint [filename]");
+    term.writeln("  Arrow keys  Move cursor");
+    term.writeln("  Space       Draw with current brush");
+    term.writeln("  b           Cycle brush character");
+    term.writeln("  c           Cycle colour");
+    term.writeln("  s           Save canvas to BrowserFS (/paint/)");
+    term.writeln("  l           Load canvas from BrowserFS");
+    term.writeln("  n           New (clear canvas)");
+    term.writeln("  Esc         Exit paint");
+  }
+
+  execute(term, params, currentDirectory, setDirectory) {
+    // Initialise empty canvas
+    const canvas = [];
+    const colors = [];
+    for (let r = 0; r < CANVAS_H; r++) {
+      canvas.push(Array(CANVAS_W).fill(' '));
+      colors.push(Array(CANVAS_W).fill(0)); // index into PALETTE
+    }
+
+    const state = {
+      cursorRow: 0,
+      cursorCol: 0,
+      brushIdx: 0,
+      colorIdx: 0,
+      status: "Arrows:Move  Space:Draw  b:Brush  c:Color  s:Save  l:Load  n:New  Esc:Quit",
+      inputMode: null, // 'save' | 'load'
+      inputBuffer: '',
+      filename: params[1] || 'picture',
+    };
+
+    // ── Ensure /paint directory exists ────────────────────────────────────────
+    try {
+      if (!window.fs.existsSync('/paint')) window.fs.mkdirSync('/paint');
+    } catch {}
+
+    // ── Renderers ─────────────────────────────────────────────────────────────
+    const renderCell = (r, c) => {
+      const ch = canvas[r][c];
+      const pal = PALETTE[colors[r][c]];
+      const isCursor = r === state.cursorRow && c === state.cursorCol;
+      let out = goto(CANVAS_ORIGIN_ROW + r, CANVAS_ORIGIN_COL + c);
+      if (isCursor) {
+        out += REVERSE + pal.fg + (ch === ' ' ? '▌' : ch) + RESET;
+      } else {
+        out += pal.fg + ch + RESET;
+      }
+      return out;
+    };
+
+    const renderCanvas = () => {
+      let out = '';
+      for (let r = 0; r < CANVAS_H; r++) {
+        out += goto(CANVAS_ORIGIN_ROW + r, CANVAS_ORIGIN_COL);
+        for (let c = 0; c < CANVAS_W; c++) {
+          const ch = canvas[r][c];
+          const pal = PALETTE[colors[r][c]];
+          const isCursor = r === state.cursorRow && c === state.cursorCol;
+          if (isCursor) {
+            out += REVERSE + pal.fg + (ch === ' ' ? '▌' : ch) + RESET;
+          } else {
+            out += pal.fg + ch + RESET;
+          }
+        }
+      }
+      return out;
+    };
+
+    const renderToolbar = () => {
+      let out = '';
+      // Title bar
+      out += goto(1, 1) + BG_BLUE + FG_WHITE + BOLD;
+      out += '╔' + '═'.repeat(78) + '╗' + RESET;
+      out += goto(2, 1) + BG_BLUE + FG_WHITE + BOLD;
+      const title = `║  NE-PAINT  │ File: ${state.filename}.txt  │ Brush: ${BRUSHES[state.brushIdx]}  │ Color: ${PALETTE[state.colorIdx].name}  `;
+      out += title.padEnd(79, ' ') + '║' + RESET;
+      out += goto(3, 1) + BG_BLUE + FG_WHITE + BOLD + '╚' + '═'.repeat(78) + '╝' + RESET;
+
+      // Palette swatch column (left margin)
+      for (let i = 0; i < PALETTE.length; i++) {
+        const p = PALETTE[i];
+        const row = CANVAS_ORIGIN_ROW + i;
+        out += goto(row, 1);
+        if (i === state.colorIdx) {
+          out += REVERSE + p.fg + '██' + RESET;
+        } else {
+          out += p.fg + '██' + RESET;
+        }
+        out += '  ';
+      }
+
+      // Brush samples column (right margin)
+      for (let i = 0; i < Math.min(BRUSHES.length, CANVAS_H); i++) {
+        out += goto(CANVAS_ORIGIN_ROW + i, CANVAS_ORIGIN_COL + CANVAS_W + 2);
+        if (i === state.brushIdx) {
+          out += REVERSE + FG_WHITE + BRUSHES[i] + RESET;
+        } else {
+          out += FG_WHITE + BRUSHES[i] + RESET;
+        }
+      }
+
+      // Canvas border
+      out += goto(CANVAS_ORIGIN_ROW - 1, CANVAS_ORIGIN_COL - 1) + FG_WHITE;
+      out += '┌' + '─'.repeat(CANVAS_W) + '┐' + RESET;
+      for (let r = 0; r < CANVAS_H; r++) {
+        out += goto(CANVAS_ORIGIN_ROW + r, CANVAS_ORIGIN_COL - 1) + FG_WHITE + '│' + RESET;
+        out += goto(CANVAS_ORIGIN_ROW + r, CANVAS_ORIGIN_COL + CANVAS_W) + FG_WHITE + '│' + RESET;
+      }
+      out += goto(CANVAS_ORIGIN_ROW + CANVAS_H, CANVAS_ORIGIN_COL - 1) + FG_WHITE;
+      out += '└' + '─'.repeat(CANVAS_W) + '┘' + RESET;
+
+      return out;
+    };
+
+    const renderStatus = () => {
+      let out = goto(ROWS, 1) + BG_BLUE + FG_WHITE;
+      if (state.inputMode) {
+        out += ` ${state.inputPrompt}: ${state.inputBuffer}█`.padEnd(80, ' ');
+      } else {
+        out += (' ' + state.status).padEnd(80, ' ');
+      }
+      out += RESET;
+      return out;
+    };
+
+    const render = (fullRedraw = false) => {
+      let out = hideCursor();
+      if (fullRedraw) {
+        out += clearScreen() + renderToolbar() + renderCanvas();
+      } else {
+        out += renderCell(state.cursorRow, state.cursorCol);
+        out += renderStatus();
+      }
+      out += renderStatus();
+      term.write(out);
+    };
+
+    // ── Save / load ───────────────────────────────────────────────────────────
+    const saveCanvas = (name) => {
+      try {
+        const lines = canvas.map(row => row.join(''));
+        window.fs.writeFileSync(`/paint/${name}.txt`, lines.join('\n'));
+        state.status = `Saved to /paint/${name}.txt`;
+        state.filename = name;
+      } catch (e) {
+        state.status = `Save error: ${e.message}`;
+      }
+    };
+
+    const loadCanvas = (name) => {
+      try {
+        const raw = window.fs.readFileSync(`/paint/${name}.txt`, 'utf8');
+        const lines = raw.split('\n');
+        for (let r = 0; r < CANVAS_H; r++) {
+          const line = (lines[r] || '').split('');
+          for (let c = 0; c < CANVAS_W; c++) {
+            canvas[r][c] = line[c] || ' ';
+            colors[r][c] = 0;
+          }
+        }
+        state.status = `Loaded /paint/${name}.txt`;
+        state.filename = name;
+      } catch (e) {
+        state.status = `Load error: ${e.message}`;
+      }
+    };
+
+    // ── Initial render ────────────────────────────────────────────────────────
+    render(true);
+
+    const disposable = term.onData((key) => {
+      // Input mode
+      if (state.inputMode) {
+        if (key === '\r') {
+          const val = state.inputBuffer.trim() || state.filename;
+          if (state.inputMode === 'save') saveCanvas(val);
+          else loadCanvas(val);
+          state.inputMode = null;
+          state.inputBuffer = '';
+          render(true);
+        } else if (key === '\x1b') {
+          state.inputMode = null;
+          state.inputBuffer = '';
+          render(false);
+        } else if (key === '\u007F') {
+          state.inputBuffer = state.inputBuffer.slice(0, -1);
+          render(false);
+        } else if (key.length === 1 && key >= ' ') {
+          state.inputBuffer += key;
+          render(false);
+        }
+        return;
+      }
+
+      let prevRow = state.cursorRow;
+      let prevCol = state.cursorCol;
+      let needFullRedraw = false;
+
+      switch (key) {
+        case '\x1b': // Esc — quit
+          disposable.dispose();
+          term.write(showCursor() + clearScreen());
+          return;
+
+        // Movement
+        case '\x1b[A': state.cursorRow = Math.max(0, state.cursorRow - 1); break;
+        case '\x1b[B': state.cursorRow = Math.min(CANVAS_H - 1, state.cursorRow + 1); break;
+        case '\x1b[C': state.cursorCol = Math.min(CANVAS_W - 1, state.cursorCol + 1); break;
+        case '\x1b[D': state.cursorCol = Math.max(0, state.cursorCol - 1); break;
+
+        // Draw
+        case ' ':
+          canvas[state.cursorRow][state.cursorCol] = BRUSHES[state.brushIdx];
+          colors[state.cursorRow][state.cursorCol] = state.colorIdx;
+          break;
+
+        // Erase (Delete key)
+        case '\x1b[3~':
+          canvas[state.cursorRow][state.cursorCol] = ' ';
+          break;
+
+        // Cycle brush
+        case 'b': case 'B':
+          state.brushIdx = (state.brushIdx + 1) % BRUSHES.length;
+          needFullRedraw = true;
+          break;
+
+        // Cycle colour
+        case 'c': case 'C':
+          state.colorIdx = (state.colorIdx + 1) % PALETTE.length;
+          needFullRedraw = true;
+          break;
+
+        // Save
+        case 's': case 'S':
+          state.inputMode = 'save';
+          state.inputBuffer = state.filename;
+          state.inputPrompt = 'Save as';
+          render(false);
+          return;
+
+        // Load
+        case 'l': case 'L':
+          state.inputMode = 'load';
+          state.inputBuffer = state.filename;
+          state.inputPrompt = 'Load file';
+          render(false);
+          return;
+
+        // New (clear)
+        case 'n': case 'N':
+          for (let r = 0; r < CANVAS_H; r++)
+            for (let c = 0; c < CANVAS_W; c++) {
+              canvas[r][c] = ' ';
+              colors[r][c] = 0;
+            }
+          state.status = 'Canvas cleared';
+          needFullRedraw = true;
+          break;
+
+        default:
+          // Direct char draw
+          if (key.length === 1 && key >= ' ' && key <= '~') {
+            canvas[state.cursorRow][state.cursorCol] = key;
+            colors[state.cursorRow][state.cursorCol] = state.colorIdx;
+            state.cursorCol = Math.min(CANVAS_W - 1, state.cursorCol + 1);
+          }
+          break;
+      }
+
+      render(needFullRedraw);
+    });
+  }
+}

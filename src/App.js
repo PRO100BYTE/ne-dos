@@ -52,8 +52,15 @@ function App() {
     let command = '';
     const setCommand = v => command = v;
 
+    // Command history
+    const history = [];
+    let historyIndex = -1;
+    let savedInput = '';
+
     const prompt = (term) => {
       setCommand("");
+      historyIndex = -1;
+      savedInput = '';
       term.write(`\r\n${FormatDirectory(currentDirectory)}>`);
     }
 
@@ -76,21 +83,51 @@ function App() {
 
     prompt(term);
 
+    // Helper: replace current command line on terminal
+    const replaceCurrentInput = (newValue) => {
+      // Erase current input: move cursor back and clear to end of line
+      term.write('\r\x1b[K');
+      term.write(`${FormatDirectory(currentDirectory)}>${newValue}`);
+      setCommand(newValue);
+    };
+
     term.onData(e => {
       switch (e) {
-        case '\u0003':
+        case '\u0003': // Ctrl+C
           term.write('^C');
           prompt(term);
           break;
-        case '\r':
-          // run command
+        case '\r': // Enter
           runCommand();
           break;
-        case '\u007F':
+        case '\u007F': // Backspace
           if (command.length > 0) {
             term.write('\b \b');
             setCommand(command.substring(0, command.length - 1));
           }
+          break;
+        case '\x1b[A': // Arrow Up — history backward
+          if (history.length === 0) break;
+          if (historyIndex === -1) {
+            savedInput = command;
+            historyIndex = history.length - 1;
+          } else if (historyIndex > 0) {
+            historyIndex--;
+          }
+          replaceCurrentInput(history[historyIndex]);
+          break;
+        case '\x1b[B': // Arrow Down — history forward
+          if (historyIndex === -1) break;
+          if (historyIndex < history.length - 1) {
+            historyIndex++;
+            replaceCurrentInput(history[historyIndex]);
+          } else {
+            historyIndex = -1;
+            replaceCurrentInput(savedInput);
+          }
+          break;
+        case '\x1b[C': // Arrow Right — ignore
+        case '\x1b[D': // Arrow Left — ignore
           break;
         default:
           if ((e >= String.fromCharCode(0x20) && e <= String.fromCharCode(0x7E)) || e >= '\u00a0') {
@@ -108,6 +145,12 @@ function App() {
       try {
         let parts = command.split(" ");
         term.write('\r\n');
+
+        // Save non-empty commands to history (skip duplicate of last entry)
+        const trimmed = command.trim();
+        if (trimmed && (history.length === 0 || history[history.length - 1] !== trimmed)) {
+          history.push(trimmed);
+        }
 
         switch (parts[0]) {
           default:
