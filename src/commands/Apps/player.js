@@ -122,12 +122,17 @@ export default class PlayerCommand {
       audio:         null,
       objectUrls:    {},
     };
+    let isExiting = false;
+    let audioEndedHandler = null;
+    let audioErrorHandler = null;
 
     const setStatus = (msg) => {
+      if (isExiting) return;
       state.status = msg;
       if (state.statusTimeout) clearTimeout(state.statusTimeout);
       if (msg) {
         state.statusTimeout = setTimeout(() => {
+          if (isExiting) return;
           state.status = '';
           renderAll();
         }, 3000);
@@ -178,6 +183,7 @@ export default class PlayerCommand {
     };
 
     const animateBars = () => {
+      if (isExiting) return;
       if (!state.playing) {
         beatBars = Array(VIZ_COLS).fill(0);
         term.write(hideCursor() + renderViz());
@@ -261,7 +267,13 @@ export default class PlayerCommand {
 
     const loadTrack = (idx, autoPlay = false) => {
       stopAnim();
-      if (state.audio) { state.audio.pause(); state.audio.src = ''; state.audio = null; }
+      if (state.audio) {
+        if (audioEndedHandler) state.audio.removeEventListener('ended', audioEndedHandler);
+        if (audioErrorHandler) state.audio.removeEventListener('error', audioErrorHandler);
+        state.audio.pause();
+        state.audio.src = '';
+        state.audio = null;
+      }
       cleanupAudioGraph();
       if (!playlist.length) return;
       const url = getUrl(playlist[idx]);
@@ -271,7 +283,8 @@ export default class PlayerCommand {
       audio.loop   = state.repeat;
       state.audio  = audio;
       setupAudioGraph(audio);
-      audio.addEventListener('ended', () => {
+      audioEndedHandler = () => {
+        if (isExiting) return;
         if (state.repeat) {
           // Repeat one: reload current track
           audio.currentTime = 0;
@@ -287,11 +300,14 @@ export default class PlayerCommand {
         // Auto-advance to next without error
         loadTrack(state.trackIdx, true);
         ensurePlScroll(); renderAll();
-      });
-      audio.addEventListener('error', () => {
+      };
+      audioErrorHandler = () => {
+        if (isExiting) return;
         setStatus(`Error loading: ${playlist[idx]}`);
         renderAll();
-      });
+      };
+      audio.addEventListener('ended', audioEndedHandler);
+      audio.addEventListener('error', audioErrorHandler);
       if (autoPlay) {
         if (audioCtx && audioCtx.state === 'suspended') {
           audioCtx.resume().catch(() => {});
@@ -375,6 +391,7 @@ export default class PlayerCommand {
 
     // ── Render progress row only (called by interval + anim) ─────────────────
     const renderProgressRow = () => {
+      if (isExiting) return;
       if (!state.audio) return;
       const dur = state.audio.duration || 0;
       const cur = state.audio.currentTime || 0;
@@ -390,6 +407,7 @@ export default class PlayerCommand {
 
     // ── Full screen render ────────────────────────────────────────────────────
     const renderAll = () => {
+      if (isExiting) return;
       const trackName = playlist.length > 0 ? playlist[state.trackIdx] : '(no tracks)';
       const playIcon  = state.playing ? '▶' : '⏸';
       const volPct    = Math.round(state.volume * 100);
@@ -500,10 +518,17 @@ export default class PlayerCommand {
 
     // ── Exit helper ───────────────────────────────────────────────────────────
     const doExit = () => {
+      if (isExiting) return;
+      isExiting = true;
       stopAnim();
       clearInterval(progressInterval);
       if (state.statusTimeout) clearTimeout(state.statusTimeout);
-      if (state.audio) { state.audio.pause(); state.audio.src = ''; }
+      if (state.audio) {
+        if (audioEndedHandler) state.audio.removeEventListener('ended', audioEndedHandler);
+        if (audioErrorHandler) state.audio.removeEventListener('error', audioErrorHandler);
+        state.audio.pause();
+        state.audio.src = '';
+      }
       cleanupAudioGraph();
       Object.values(state.objectUrls).forEach(u => URL.revokeObjectURL(u));
       if (disposable) disposable.dispose();
