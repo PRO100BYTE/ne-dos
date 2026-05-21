@@ -209,7 +209,7 @@ export default class PlayerCommand {
         const bins = freqData.length;
         let frameMean = 0;
         const profiles = {
-          Low:    { sMul: 0.74, rise: 0.50, fall: 0.46, gainMin: 0.62, gainMax: 1.00, capRows: VIZ_ROWS * 0.72, gate: 0.02, gamma: 1.06, targetMean: 0.24 },
+          Low:    { sMul: 0.92, rise: 0.58, fall: 0.44, gainMin: 0.82, gainMax: 1.22, capRows: VIZ_ROWS * 0.90, gate: 0.012, gamma: 0.95, targetMean: 0.33 },
           Normal: { sMul: 0.96, rise: 0.64, fall: 0.38, gainMin: 0.74, gainMax: 1.16, capRows: VIZ_ROWS * 0.88, gate: 0.015, gamma: 0.98, targetMean: 0.31 },
           High:   { sMul: 1.14, rise: 0.80, fall: 0.34, gainMin: 0.86, gainMax: 1.28, capRows: VIZ_ROWS * 0.98, gate: 0.01, gamma: 0.90, targetMean: 0.38 },
         };
