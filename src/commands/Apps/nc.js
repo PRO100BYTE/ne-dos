@@ -23,12 +23,6 @@ const clearScreen = () => `${CSI}2J${CSI}H`;
 const hideCursor = () => `${CSI}?25l`;
 const showCursor = () => `${CSI}?25h`;
 
-// ─── Layout constants ─────────────────────────────────────────────────────────
-const COLS = 80;
-const ROWS = 24;
-const PANEL_W = 38; // inner width of each panel
-const PANEL_H = ROWS - 5; // rows for file list (header + list + footer bar)
-
 // Box-drawing chars
 const TL = '╔', TR = '╗', BL = '╚', BR = '╝';
 const H = '═', V = '║';
@@ -55,6 +49,15 @@ export default class NcCommand {
   }
 
   execute(term, params, currentDirectory, setDirectory) {
+    // Use actual terminal dimensions
+    const COLS = term.cols;
+    const ROWS = term.rows;
+    const PANEL_W = Math.floor(COLS / 2) - 2;
+    const PANEL_H = ROWS - 5;
+
+    // Suppress shell input handler while NC is running
+    if (term._setAppMode) term._setAppMode(true);
+
     const state = {
       panels: [
         { dir: PrepareInternal(currentDirectory), entries: [], cursor: 0, scroll: 0 },
@@ -258,6 +261,7 @@ export default class NcCommand {
         // Quit
         case '\x1b':
         case '\x1b[21~': // F10
+          if (term._setAppMode) term._setAppMode(false);
           disposable.dispose();
           term.write(showCursor() + clearScreen());
           setDirectory(PrepareInternal(ap().dir));

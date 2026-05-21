@@ -33,7 +33,6 @@ const CANVAS_W = 60;
 const CANVAS_H = 18;
 const CANVAS_ORIGIN_ROW = 4;
 const CANVAS_ORIGIN_COL = 12;
-const ROWS = 24;
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const PALETTE = [
@@ -66,6 +65,11 @@ export default class PaintCommand {
   }
 
   execute(term, params, currentDirectory, setDirectory) {
+    // Use actual terminal height for status-bar positioning
+    const ROWS = term.rows;
+    // Suppress shell input handler while Paint is running
+    if (term._setAppMode) term._setAppMode(true);
+
     // Initialise empty canvas
     const canvas = [];
     const colors = [];
@@ -254,6 +258,7 @@ export default class PaintCommand {
 
       switch (key) {
         case '\x1b': // Esc — quit
+          if (term._setAppMode) term._setAppMode(false);
           disposable.dispose();
           term.write(showCursor() + clearScreen());
           return;

@@ -48,6 +48,10 @@ function App() {
     fitAddon.fit();
     // window.onresize = () => fitAddon.fit();
 
+    // TUI apps call term._setAppMode(true) to suppress the shell input handler
+    let appMode = false;
+    term._setAppMode = (val) => { appMode = val; };
+
     let currentDirectory = '/';
     let command = '';
     const setCommand = v => command = v;
@@ -92,6 +96,7 @@ function App() {
     };
 
     term.onData(e => {
+      if (appMode) return; // TUI application is handling input
       switch (e) {
         case '\u0003': // Ctrl+C
           term.write('^C');

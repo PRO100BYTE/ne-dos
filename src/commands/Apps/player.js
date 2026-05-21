@@ -20,8 +20,6 @@ const clearScreen = () => `${CSI}2J${CSI}H`;
 const hideCursor = () => `${CSI}?25l`;
 const showCursor = () => `${CSI}?25h`;
 
-const ROWS = 24;
-const COLS = 80;
 const AUDIO_EXTENSIONS = ['.mp3', '.ogg', '.wav', '.flac', '.aac'];
 
 // ─── Player Command ───────────────────────────────────────────────────────────
@@ -42,6 +40,12 @@ export default class PlayerCommand {
   }
 
   execute(term, params, currentDirectory, setDirectory) {
+    // Use actual terminal dimensions
+    const COLS = term.cols;
+    const ROWS = term.rows;
+    // Suppress shell input handler while Player is running
+    if (term._setAppMode) term._setAppMode(true);
+
     // ── Ensure /music directory ───────────────────────────────────────────────
     try {
       if (!window.fs.existsSync('/music')) window.fs.mkdirSync('/music');
@@ -308,6 +312,7 @@ export default class PlayerCommand {
           clearInterval(progressInterval);
           if (state.audio) { state.audio.pause(); state.audio.src = ''; }
           Object.values(state.objectUrls).forEach(u => URL.revokeObjectURL(u));
+          if (term._setAppMode) term._setAppMode(false);
           disposable.dispose();
           term.write(showCursor() + clearScreen());
           return;
