@@ -28,11 +28,9 @@ const clearScreen = () => `${CSI}2J${CSI}H`;
 const hideCursor = () => `${CSI}?25l`;
 const showCursor = () => `${CSI}?25h`;
 
-// ─── Canvas dimensions ────────────────────────────────────────────────────────
-const CANVAS_W = 60;
-const CANVAS_H = 18;
+// ─── Canvas dimensions are computed dynamically inside execute() ─────────────
 const CANVAS_ORIGIN_ROW = 4;
-const CANVAS_ORIGIN_COL = 12;
+const CANVAS_ORIGIN_COL = 7; // left of canvas border; palette occupies cols 1-5
 
 // ─── Palette ──────────────────────────────────────────────────────────────────
 const PALETTE = [
@@ -65,8 +63,13 @@ export default class PaintCommand {
   }
 
   execute(term, params, currentDirectory, setDirectory) {
-    // Use actual terminal height for status-bar positioning
+    // Use actual terminal dimensions
+    const COLS = term.cols;
     const ROWS = term.rows;
+    // Canvas fills the available space                  
+    // left panel: 5 cols (palette+space), right panel: 4 cols (space+brush+space)
+    const CANVAS_W = Math.max(20, COLS - CANVAS_ORIGIN_COL - 5);
+    const CANVAS_H = Math.max(8, ROWS - CANVAS_ORIGIN_ROW - 2);
     // Suppress shell input handler while Paint is running
     if (term._setAppMode) term._setAppMode(true);
 
@@ -130,11 +133,11 @@ export default class PaintCommand {
       let out = '';
       // Title bar
       out += goto(1, 1) + BG_BLUE + FG_WHITE + BOLD;
-      out += '╔' + '═'.repeat(78) + '╗' + RESET;
+      out += '╔' + '═'.repeat(COLS - 2) + '╗' + RESET;
       out += goto(2, 1) + BG_BLUE + FG_WHITE + BOLD;
       const title = `║  NE-PAINT  │ File: ${state.filename}.txt  │ Brush: ${BRUSHES[state.brushIdx]}  │ Color: ${PALETTE[state.colorIdx].name}  `;
-      out += title.padEnd(79, ' ') + '║' + RESET;
-      out += goto(3, 1) + BG_BLUE + FG_WHITE + BOLD + '╚' + '═'.repeat(78) + '╝' + RESET;
+      out += title.padEnd(COLS - 1, ' ') + '║' + RESET;
+      out += goto(3, 1) + BG_BLUE + FG_WHITE + BOLD + '╚' + '═'.repeat(COLS - 2) + '╝' + RESET;
 
       // Palette swatch column (left margin)
       for (let i = 0; i < PALETTE.length; i++) {
@@ -175,9 +178,9 @@ export default class PaintCommand {
     const renderStatus = () => {
       let out = goto(ROWS, 1) + BG_BLUE + FG_WHITE;
       if (state.inputMode) {
-        out += ` ${state.inputPrompt}: ${state.inputBuffer}█`.padEnd(80, ' ');
+        out += ` ${state.inputPrompt}: ${state.inputBuffer}█`.padEnd(COLS, ' ');
       } else {
-        out += (' ' + state.status).padEnd(80, ' ');
+        out += (' ' + state.status).padEnd(COLS, ' ');
       }
       out += RESET;
       return out;
@@ -261,6 +264,7 @@ export default class PaintCommand {
           if (term._setAppMode) term._setAppMode(false);
           disposable.dispose();
           term.write(showCursor() + clearScreen());
+          if (term.prompt) term.prompt();
           return;
 
         // Movement

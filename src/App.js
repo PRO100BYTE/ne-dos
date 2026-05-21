@@ -68,9 +68,8 @@ function App() {
       term.write(`\r\n${FormatDirectory(currentDirectory)}>`);
     }
 
-    term.prompt = () => {
-      term.write(`\r\n${FormatDirectory(currentDirectory)}>`);
-    };
+    // TUI apps call term.prompt() to restore the shell prompt after exiting
+    term.prompt = () => prompt(term);
 
     const date = new Date();
     const d = dateFormat(date, "ddd m-dd-yyyy");
