@@ -38,6 +38,7 @@ function App() {
   // const [ command, setCommand ] = useState("");
 
   const terminalRef = React.useRef(null);
+  const FULLSCREEN_RESTORE_KEY = 'nedos_restore_fullscreen_after_reload';
 
   useEffect(() => {
     // Dev hot-reload safety: stop any previously running TUI app/audio.
@@ -54,12 +55,57 @@ function App() {
 
     term.open(terminalRef.current);
     fitAddon.fit();
-    // window.onresize = () => fitAddon.fit();
+    const reflowTerminal = () => {
+      try { fitAddon.fit(); } catch {}
+    };
 
     // TUI apps call term._setAppMode(true) to suppress the shell input handler
     let appMode = false;
     term._setAppMode = (val) => { appMode = val; };
     let rebootInProgress = false;
+
+    const markFullscreenRestoreIfNeeded = () => {
+      try {
+        if (document.fullscreenElement) {
+          sessionStorage.setItem(FULLSCREEN_RESTORE_KEY, '1');
+        } else {
+          sessionStorage.removeItem(FULLSCREEN_RESTORE_KEY);
+        }
+      } catch {}
+    };
+
+    const tryRestoreFullscreen = async () => {
+      try {
+        if (sessionStorage.getItem(FULLSCREEN_RESTORE_KEY) !== '1') return true;
+        const rootEl = document.documentElement;
+        if (document.fullscreenElement) {
+          sessionStorage.removeItem(FULLSCREEN_RESTORE_KEY);
+          return true;
+        }
+        if (rootEl && rootEl.requestFullscreen) {
+          await rootEl.requestFullscreen();
+          sessionStorage.removeItem(FULLSCREEN_RESTORE_KEY);
+          return true;
+        }
+      } catch {}
+      return false;
+    };
+
+    const onRestoreGesture = () => {
+      tryRestoreFullscreen().then((ok) => {
+        if (!ok) return;
+        document.removeEventListener('keydown', onRestoreGesture, true);
+        document.removeEventListener('mousedown', onRestoreGesture, true);
+        document.removeEventListener('touchstart', onRestoreGesture, true);
+      });
+    };
+
+    tryRestoreFullscreen().then((ok) => {
+      if (ok) return;
+      document.addEventListener('keydown', onRestoreGesture, true);
+      document.addEventListener('mousedown', onRestoreGesture, true);
+      document.addEventListener('touchstart', onRestoreGesture, true);
+    });
 
     let currentDirectory = '/';
     let command = '';
@@ -397,8 +443,8 @@ function App() {
         term.write(clearScreen() + hideCursor());
         term.write(goto(Math.max(2, Math.floor(ROWS / 2)), 2) + BOLD + FG_YELLOW + 'Rebooting system...' + RESET);
         setTimeout(() => {
-          if (typeof window.__nedosRebootSystem === 'function') {
-            window.__nedosRebootSystem();
+          if (typeof window.__nedosHardRebootSystem === 'function') {
+            window.__nedosHardRebootSystem();
           } else {
             window.location.reload();
           }
@@ -611,7 +657,7 @@ function App() {
       }
     };
 
-    const rebootSystem = async () => {
+    const softRebootSystem = async () => {
       if (rebootInProgress) return;
       rebootInProgress = true;
       try {
@@ -621,17 +667,26 @@ function App() {
         }
         window.__nedosActiveAppCleanup = null;
 
+        reflowTerminal();
         biosAborted = false;
         await runBios();
+        reflowTerminal();
         await runLoading();
+        reflowTerminal();
         startShell();
       } finally {
         rebootInProgress = false;
       }
     };
-    window.__nedosRebootSystem = rebootSystem;
+    const hardRebootSystem = () => {
+      markFullscreenRestoreIfNeeded();
+      window.location.reload();
+    };
 
-    rebootSystem();
+    window.__nedosSoftRebootSystem = softRebootSystem;
+    window.__nedosHardRebootSystem = hardRebootSystem;
+
+    softRebootSystem();
 
     // System hotkey: Shift+F11 toggles fullscreen mode
     const lockBrowserKeys = async () => {
@@ -671,6 +726,11 @@ function App() {
       } else {
         unlockBrowserKeys();
       }
+      reflowTerminal();
+    };
+
+    const onWindowResize = () => {
+      reflowTerminal();
     };
 
     // Capture F11 / Shift+F11 / Esc to suppress browser defaults,
@@ -692,6 +752,7 @@ function App() {
     // Use capture phase to intercept before xterm
     document.addEventListener('keydown', onSystemKeyDown, true);
     document.addEventListener('fullscreenchange', onFullscreenChange);
+    window.addEventListener('resize', onWindowResize);
 
     // Helper: replace current command line on terminal
     const replaceCurrentInput = (newValue) => {
@@ -804,10 +865,15 @@ function App() {
           window.__nedosActiveAppCleanup();
         }
         window.__nedosActiveAppCleanup = null;
-        window.__nedosRebootSystem = null;
+        window.__nedosSoftRebootSystem = null;
+        window.__nedosHardRebootSystem = null;
       } catch {}
+      document.removeEventListener('keydown', onRestoreGesture, true);
+      document.removeEventListener('mousedown', onRestoreGesture, true);
+      document.removeEventListener('touchstart', onRestoreGesture, true);
       document.removeEventListener('keydown', onSystemKeyDown, true);
       document.removeEventListener('fullscreenchange', onFullscreenChange);
+      window.removeEventListener('resize', onWindowResize);
       unlockBrowserKeys();
       try { term.dispose(); } catch {}
     };
