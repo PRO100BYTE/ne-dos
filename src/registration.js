@@ -59,6 +59,9 @@ import SnakeCommand from "./commands/Apps/snake";
 import TetrisCommand from "./commands/Apps/tetris";
 import TelnetCommand from "./commands/Apps/telnet";
 import AnsiDemoCommand from "./commands/Apps/ansidemo";
+import QBCommand from "./commands/Apps/qb";
+import DebugCommand from "./commands/Apps/debug";
+import JsCommand from "./commands/Apps/js";
 import FullscreenCommand from "./commands/System/fullscreen";
 import MemCommand from "./commands/System/mem";
 import SetCommand from "./commands/System/set";
@@ -149,6 +152,9 @@ export const registerAllCommands = () => {
   registeredCommands['tetris'] = new TetrisCommand();
   registeredCommands['telnet'] = new TelnetCommand();
   registeredCommands['ansidemo'] = new AnsiDemoCommand();
+  registeredCommands['qb'] = new QBCommand();
+  registeredCommands['debug'] = new DebugCommand();
+  registeredCommands['js'] = new JsCommand();
 
   return registeredCommands;
 };
