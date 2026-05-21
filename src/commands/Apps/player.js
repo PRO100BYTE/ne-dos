@@ -75,17 +75,37 @@ export default class PlayerCommand {
 
     // ── Build playlist ────────────────────────────────────────────────────────
     let playlist = [];
-    try {
-      playlist = window.fs.readdirSync('/music')
-        .filter(f => AUDIO_EXT.some(e => f.toLowerCase().endsWith(e)))
-        .sort();
-    } catch {}
-
-    // If a track name was given as param, start at that index
     let startIdx = 0;
+    
+    // If a track name/path was given as param, try to use it directly or find it in /music
     if (params[1]) {
-      const idx = playlist.findIndex(t => t.toLowerCase().includes(params[1].toLowerCase()));
-      if (idx !== -1) startIdx = idx;
+      const targetPath = params[1].startsWith('/') ? params[1] : `/music/${params[1]}`;
+      try {
+        const st = window.fs.statSync(targetPath);
+        if (!st.isDirectory()) {
+          // Load just this file
+          const filename = path.basename(targetPath);
+          playlist = [filename];
+          startIdx = 0;
+        }
+      } catch {}
+    }
+    
+    // If no specific file loaded, scan /music directory
+    if (!playlist.length) {
+      try {
+        playlist = window.fs.readdirSync('/music')
+          .filter(f => AUDIO_EXT.some(e => f.toLowerCase().endsWith(e)))
+          .sort();
+      } catch {}
+    } else if (playlist.length === 1) {
+      // If we loaded a single file, now also add other files from /music to the playlist
+      try {
+        const otherFiles = window.fs.readdirSync('/music')
+          .filter(f => AUDIO_EXT.some(e => f.toLowerCase().endsWith(e)) && f !== playlist[0])
+          .sort();
+        playlist = [playlist[0], ...otherFiles];
+      } catch {}
     }
 
     // ── State ─────────────────────────────────────────────────────────────────
@@ -97,9 +117,21 @@ export default class PlayerCommand {
       repeatAll:     false,   // repeat all
       volume:        0.8,
       status:        '',
+      statusTimeout: null,   // timer for auto-clearing status
       plScroll:      0,
       audio:         null,
       objectUrls:    {},
+    };
+
+    const setStatus = (msg) => {
+      state.status = msg;
+      if (state.statusTimeout) clearTimeout(state.statusTimeout);
+      if (msg) {
+        state.statusTimeout = setTimeout(() => {
+          state.status = '';
+          renderAll();
+        }, 3000);
+      }
     };
 
     // ── Visualizer bars ───────────────────────────────────────────────────────
@@ -155,7 +187,8 @@ export default class PlayerCommand {
     const getUrl = (name) => {
       if (state.objectUrls[name]) return state.objectUrls[name];
       try {
-        const buf  = window.fs.readFileSync(`/music/${name}`);
+        const filePath = name.startsWith('/') ? name : `/music/${name}`;
+        const buf  = window.fs.readFileSync(filePath);
         const url  = URL.createObjectURL(new Blob([buf]));
         state.objectUrls[name] = url;
         return url;
@@ -181,17 +214,24 @@ export default class PlayerCommand {
       audio.loop   = state.repeat;
       state.audio  = audio;
       audio.addEventListener('ended', () => {
-        if (state.repeat) return;
-        if (state.repeatAll || !state.shuffle) {
-          nextTrack(true);
-        } else if (state.shuffle) {
-          state.trackIdx = Math.floor(Math.random() * playlist.length);
-          loadTrack(state.trackIdx, true);
-          ensurePlScroll(); renderAll();
+        if (state.repeat) {
+          // Repeat one: reload current track
+          audio.currentTime = 0;
+          audio.play().catch(e => setStatus(`Play error: ${e.message}`));
+          return;
         }
+        // Move to next track
+        if (state.shuffle) {
+          state.trackIdx = Math.floor(Math.random() * playlist.length);
+        } else {
+          state.trackIdx = (state.trackIdx + 1) % playlist.length;
+        }
+        // Auto-advance to next without error
+        loadTrack(state.trackIdx, true);
+        ensurePlScroll(); renderAll();
       });
       audio.addEventListener('error', () => {
-        state.status = `Error playing: ${playlist[idx]}`;
+        setStatus(`Error loading: ${playlist[idx]}`);
         renderAll();
       });
       if (autoPlay) {
@@ -202,12 +242,12 @@ export default class PlayerCommand {
     };
 
     const playPause = () => {
-      if (!playlist.length) { state.status = 'No audio files in /music/'; renderAll(); return; }
+      if (!playlist.length) { setStatus('No audio files in /music/'); renderAll(); return; }
       if (!state.audio) loadTrack(state.trackIdx);
       if (state.playing) {
         state.audio.pause(); state.playing = false; stopAnim();
       } else {
-        state.audio.play().catch(e => { state.status = `Play error: ${e.message}`; });
+        state.audio.play().catch(e => { setStatus(`Play error: ${e.message}`); });
         state.playing = true; animateBars();
       }
       renderAll();
@@ -379,7 +419,6 @@ export default class PlayerCommand {
       const statusText = state.status ||
         'Space:Play/Pause  ↑↓:Track  ←→:Seek  Shift+←→:Seek30s  +-:Vol  s:Shuffle  r:Rep1  a:Rep∞  Esc:Quit';
       out += (' ' + statusText).padEnd(COLS, ' ') + RESET;
-      state.status = '';
 
       term.write(out);
       renderProgressRow();
@@ -426,18 +465,20 @@ export default class PlayerCommand {
 
         case 's': case 'S':
           state.shuffle   = !state.shuffle;
-          state.status    = state.shuffle ? 'Shuffle: ON' : 'Shuffle: OFF';
+          if (state.shuffle) state.repeatAll = false; // Disable repeat all when shuffle is on
+          setStatus(state.shuffle ? 'Shuffle: ON' : 'Shuffle: OFF');
           renderAll(); break;
 
         case 'r': case 'R':
           state.repeat = !state.repeat;
-          if (state.audio) state.audio.loop = state.repeat;
-          state.status = state.repeat ? 'Repeat one: ON' : 'Repeat one: OFF';
+          if (state.audio) state.audio.loop = false; // Manual repeat handling in 'ended' event
+          setStatus(state.repeat ? 'Repeat one: ON' : 'Repeat one: OFF');
           renderAll(); break;
 
         case 'a': case 'A':
           state.repeatAll = !state.repeatAll;
-          state.status    = state.repeatAll ? 'Repeat all: ON' : 'Repeat all: OFF';
+          if (state.repeatAll) state.shuffle = false; // Disable shuffle when repeat all is on
+          setStatus(state.repeatAll ? 'Repeat all: ON' : 'Repeat all: OFF');
           renderAll(); break;
 
         default:

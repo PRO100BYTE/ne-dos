@@ -27,6 +27,9 @@ import StatusCommand from "./commands/System/status";
 import AboutmeCommand from "./commands/Utility/aboutme";
 import DownloadCommand from "./commands/Filesystem/download";
 import UploadCommand from "./commands/Filesystem/upload";
+import RenameCommand from "./commands/Filesystem/rename";
+import CopyCommand from "./commands/Filesystem/copy";
+import MoveCommand from "./commands/Filesystem/move";
 import MatrixCommand from "./commands/General/matrix";
 import RebootCommand from "./commands/System/reboot";
 import PasswordCommand from "./commands/Utility/password";
@@ -57,6 +60,9 @@ export const registerAllCommands = () => {
   registeredCommands['rmdir'] = new DeleteDirectoryCommand();
   registeredCommands['download'] = new DownloadCommand();
   registeredCommands['upload'] = new UploadCommand();
+  registeredCommands['rename'] = new RenameCommand();
+  registeredCommands['copy'] = new CopyCommand();
+  registeredCommands['move'] = new MoveCommand();
 
   // General commands
   registeredCommands['credits'] = new CreditsCommand();
