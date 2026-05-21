@@ -54,7 +54,7 @@ export default class PlayerCommand {
     if (term._setAppMode) term._setAppMode(true);
 
     // ── Layout constants ───────────────────────────────────────────────────────
-    const VIZ_ROWS      = 6;                        // rows for the visualizer
+    const VIZ_ROWS      = 11;                       // rows for the visualizer (+5 for extra punch)
     const VIZ_COLS      = Math.max(16, COLS);       // full-width frequency bands
     const HDR_ROWS      = 3;                        // title header rows 1-3
     // Row 4: separator
@@ -181,7 +181,7 @@ export default class PlayerCommand {
         sourceNode = audioCtx.createMediaElementSource(audio);
         analyser = audioCtx.createAnalyser();
         analyser.fftSize = 1024;
-        analyser.smoothingTimeConstant = 0.72;
+        analyser.smoothingTimeConstant = 0.56;
         sourceNode.connect(analyser);
         analyser.connect(audioCtx.destination);
         freqData = new Uint8Array(analyser.frequencyBinCount);
@@ -209,9 +209,9 @@ export default class PlayerCommand {
         const bins = freqData.length;
         let frameMean = 0;
         const profiles = {
-          Low:    { sMul: 0.92, rise: 0.58, fall: 0.44, gainMin: 0.82, gainMax: 1.22, capRows: VIZ_ROWS * 0.90, gate: 0.012, gamma: 0.95, targetMean: 0.33 },
-          Normal: { sMul: 0.96, rise: 0.64, fall: 0.38, gainMin: 0.74, gainMax: 1.16, capRows: VIZ_ROWS * 0.88, gate: 0.015, gamma: 0.98, targetMean: 0.31 },
-          High:   { sMul: 1.14, rise: 0.80, fall: 0.34, gainMin: 0.86, gainMax: 1.28, capRows: VIZ_ROWS * 0.98, gate: 0.01, gamma: 0.90, targetMean: 0.38 },
+          Low:    { sMul: 1.00, rise: 0.72, fall: 0.34, gainMin: 0.90, gainMax: 1.30, capRows: VIZ_ROWS * 0.94, gate: 0.010, gamma: 0.90, targetMean: 0.36 },
+          Normal: { sMul: 1.08, rise: 0.80, fall: 0.30, gainMin: 0.84, gainMax: 1.34, capRows: VIZ_ROWS * 0.96, gate: 0.008, gamma: 0.88, targetMean: 0.39 },
+          High:   { sMul: 1.24, rise: 0.90, fall: 0.26, gainMin: 0.92, gainMax: 1.42, capRows: VIZ_ROWS * 0.99, gate: 0.006, gamma: 0.84, targetMean: 0.43 },
         };
         const profile = profiles[state.vizSensitivity] || profiles.Low;
 
@@ -219,8 +219,8 @@ export default class PlayerCommand {
           // Frequency mapping that keeps energy distributed across the whole width.
           const from = i / VIZ_COLS;
           const to = (i + 1) / VIZ_COLS;
-          const start = Math.max(0, Math.min(bins - 1, Math.floor(Math.pow(from, 1.35) * (bins - 1))));
-          const end = Math.max(start + 1, Math.min(bins, Math.floor(Math.pow(to, 1.35) * (bins - 1))));
+          const start = Math.max(0, Math.min(bins - 1, Math.floor(Math.pow(from, 1.28) * (bins - 1))));
+          const end = Math.max(start + 1, Math.min(bins, Math.floor(Math.pow(to, 1.28) * (bins - 1))));
           let sum = 0;
           let flux = 0;
           for (let j = start; j < end; j++) sum += freqData[j];
@@ -229,10 +229,12 @@ export default class PlayerCommand {
           const delta = flux / (end - start);
 
           // Dynamic range shaping with lightweight noise gate and transient boost.
-          const avgNorm = Math.max(0, (avg - 10) / 245);
-          const deltaNorm = Math.max(0, (delta - 5) / 250);
-          const bandTilt = 0.96 + (i / VIZ_COLS) * 0.12;
-          const raw = (avgNorm * 0.80 + deltaNorm * 0.20) * bandTilt * profile.sMul;
+          const avgNorm = Math.max(0, (avg - 8) / 240);
+          const deltaNorm = Math.max(0, (delta - 4) / 230);
+          const bandPos = i / VIZ_COLS;
+          const lowKick = 1.20 - Math.min(0.26, bandPos * 0.26);
+          const bandTilt = (0.98 + bandPos * 0.10) * lowKick;
+          const raw = (avgNorm * 0.66 + deltaNorm * 0.34) * bandTilt * profile.sMul;
           const gated = Math.max(0, raw - profile.gate);
           const target = Math.pow(Math.min(1, gated), profile.gamma);
           frameMean += target;
@@ -247,7 +249,7 @@ export default class PlayerCommand {
 
         // Adaptive normalization by average energy (not peak), so the whole width breathes.
         frameMean = frameMean / Math.max(1, VIZ_COLS);
-        vizPeak = Math.max(frameMean, vizPeak * 0.96);
+        vizPeak = Math.max(frameMean, vizPeak * 0.93);
         const meanGain = profile.targetMean / Math.max(vizPeak, 0.05);
         const gain = Math.max(profile.gainMin, Math.min(profile.gainMax, meanGain));
         for (let i = 0; i < VIZ_COLS; i++) {
@@ -262,7 +264,7 @@ export default class PlayerCommand {
       }
 
       term.write(hideCursor() + renderViz());
-      animFrame = setTimeout(animateBars, 50);
+      animFrame = setTimeout(animateBars, 33);
     };
 
     // Render the visualizer in-place (no clearScreen, just overwrite the rows)
