@@ -220,18 +220,28 @@ export default class PlayerCommand {
           const avg = sum / (end - start);
           const delta = flux / (end - start);
 
-          // Combine level + change so bars react faster to transients.
-          const raw = (avg / 255) * 0.78 + (delta / 255) * 0.75;
-          if (raw > frameMax) frameMax = raw;
-          beatBars[i] = beatBars[i] + (raw - beatBars[i]) * 0.58;
+          // Dynamic range shaping: noise gate + transient response without full-height clipping.
+          const avgNorm = Math.max(0, (avg - 20) / 235);
+          const deltaNorm = Math.max(0, (delta - 8) / 247);
+          const bandTilt = 1 - (i / VIZ_COLS) * 0.18;
+          const raw = (avgNorm * 0.88 + deltaNorm * 0.26) * bandTilt;
+          const target = raw > 0.015 ? Math.pow(raw, 1.22) : 0;
+          if (target > frameMax) frameMax = target;
+
+          // Fast rise, slower fall for a lively but readable spectrum.
+          if (target > beatBars[i]) {
+            beatBars[i] += (target - beatBars[i]) * 0.72;
+          } else {
+            beatBars[i] += (target - beatBars[i]) * 0.24;
+          }
         }
 
-        // Adaptive gain keeps spectrum spread across width for quiet/loud tracks.
-        vizPeak = Math.max(frameMax, vizPeak * 0.92);
-        const gain = vizPeak > 0.001 ? (1.0 / vizPeak) : 1;
+        // Adaptive gain with conservative limits so bars stay distributed, not always maxed out.
+        vizPeak = Math.max(frameMax, vizPeak * 0.985);
+        const gain = Math.max(0.55, Math.min(1.15, 0.9 / Math.max(vizPeak, 0.14)));
         for (let i = 0; i < VIZ_COLS; i++) {
-          const scaled = Math.min(1, beatBars[i] * gain * 0.92);
-          beatBars[i] = Math.pow(scaled, 0.86) * VIZ_ROWS;
+          const scaled = Math.max(0, Math.min(1, beatBars[i] * gain - 0.02));
+          beatBars[i] = scaled * VIZ_ROWS;
         }
 
         prevFreqData.set(freqData);
