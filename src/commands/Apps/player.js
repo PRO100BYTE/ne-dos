@@ -201,9 +201,21 @@ export default class PlayerCommand {
     const animateBars = () => {
       if (isExiting) return;
       if (!state.playing) {
-        beatBars = Array(VIZ_COLS).fill(0);
-        barEnvelope = Array(VIZ_COLS).fill(0);
+        // Keep rendering while paused so bars fall smoothly instead of vanishing.
+        barEnvelope = barEnvelope.map(v => Math.max(0, v * 0.74));
+        beatBars = beatBars.map((v, i) => {
+          const envRows = Math.min(VIZ_ROWS, barEnvelope[i] * VIZ_ROWS);
+          return Math.max(envRows, v * 0.70);
+        });
         term.write(hideCursor() + renderViz());
+
+        // Stop timer only after bars have visually faded out.
+        const stillVisible = barEnvelope.some(v => v > 0.01) || beatBars.some(v => v > 0.05);
+        if (stillVisible) {
+          animFrame = setTimeout(animateBars, state.vizTurbo ? 24 : 33);
+        } else {
+          animFrame = null;
+        }
         return;
       }
 
@@ -212,9 +224,9 @@ export default class PlayerCommand {
         const bins = freqData.length;
         let frameMean = 0;
         const profiles = {
-          Low:    { sMul: 1.00, rise: 0.72, fall: 0.34, gainMin: 0.90, gainMax: 1.30, capRows: VIZ_ROWS * 0.94, gate: 0.010, gamma: 0.90, targetMean: 0.36 },
-          Normal: { sMul: 1.08, rise: 0.80, fall: 0.30, gainMin: 0.84, gainMax: 1.34, capRows: VIZ_ROWS * 0.96, gate: 0.008, gamma: 0.88, targetMean: 0.39 },
-          High:   { sMul: 1.24, rise: 0.90, fall: 0.26, gainMin: 0.92, gainMax: 1.42, capRows: VIZ_ROWS * 0.99, gate: 0.006, gamma: 0.84, targetMean: 0.43 },
+          Low:    { sMul: 1.00, rise: 0.72, fall: 0.52, gainMin: 0.90, gainMax: 1.30, capRows: VIZ_ROWS * 0.94, gate: 0.010, gamma: 0.90, targetMean: 0.36 },
+          Normal: { sMul: 1.08, rise: 0.80, fall: 0.48, gainMin: 0.84, gainMax: 1.34, capRows: VIZ_ROWS * 0.96, gate: 0.008, gamma: 0.88, targetMean: 0.39 },
+          High:   { sMul: 1.24, rise: 0.90, fall: 0.44, gainMin: 0.92, gainMax: 1.42, capRows: VIZ_ROWS * 0.99, gate: 0.006, gamma: 0.84, targetMean: 0.43 },
         };
         const baseProfile = profiles[state.vizSensitivity] || profiles.Low;
         const profile = state.vizTurbo
@@ -222,7 +234,7 @@ export default class PlayerCommand {
               ...baseProfile,
               sMul: baseProfile.sMul * 1.18,
               rise: Math.min(0.97, baseProfile.rise * 1.16),
-              fall: Math.min(0.56, baseProfile.fall * 1.35),
+              fall: Math.min(0.78, baseProfile.fall * 1.28),
               gainMax: baseProfile.gainMax * 1.10,
               gate: Math.max(0.003, baseProfile.gate * 0.75),
               targetMean: baseProfile.targetMean * 1.12,
@@ -273,8 +285,8 @@ export default class PlayerCommand {
 
         prevFreqData.set(freqData);
       } else {
-        barEnvelope = barEnvelope.map(v => Math.max(0, v * 0.65));
-        beatBars = beatBars.map(v => Math.max(0, v * 0.6));
+        barEnvelope = barEnvelope.map(v => Math.max(0, v * 0.58));
+        beatBars = beatBars.map(v => Math.max(0, v * 0.56));
       }
 
       term.write(hideCursor() + renderViz());
@@ -389,7 +401,9 @@ export default class PlayerCommand {
       if (!playlist.length) { setStatus(`No audio files in ${musicDir}`); renderAll(); return; }
       if (!state.audio) loadTrack(state.trackIdx);
       if (state.playing) {
-        state.audio.pause(); state.playing = false; stopAnim();
+        state.audio.pause(); state.playing = false;
+        // Keep animation loop alive briefly so spectrum falls smoothly.
+        if (animFrame === null) animateBars();
       } else {
         if (audioCtx && audioCtx.state === 'suspended') {
           audioCtx.resume().catch(() => {});
