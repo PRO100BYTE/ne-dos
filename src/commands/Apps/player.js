@@ -52,8 +52,8 @@ export default class PlayerCommand {
     if (term._setAppMode) term._setAppMode(true);
 
     // ── Layout constants ───────────────────────────────────────────────────────
-    const VIZ_ROWS      = 3;                        // rows for the visualizer
-    const VIZ_COLS      = Math.floor((COLS - 4) / 2); // bars, each 2 chars wide
+    const VIZ_ROWS      = 6;                        // rows for the visualizer
+    const VIZ_COLS      = Math.max(16, COLS - 4);   // one column per frequency band
     const HDR_ROWS      = 3;                        // title header rows 1-3
     // Row 4: separator
     // Row 5: now playing
@@ -188,13 +188,16 @@ export default class PlayerCommand {
         analyser.getByteFrequencyData(freqData);
         const bins = freqData.length;
         for (let i = 0; i < VIZ_COLS; i++) {
-          const start = Math.floor(i * bins / VIZ_COLS);
-          const end = Math.max(start + 1, Math.floor((i + 1) * bins / VIZ_COLS));
+          // Log-frequency band mapping: low frequencies get more detail.
+          const from = i / VIZ_COLS;
+          const to = (i + 1) / VIZ_COLS;
+          const start = Math.floor((Math.pow(from, 2.2)) * (bins - 1));
+          const end = Math.max(start + 1, Math.floor((Math.pow(to, 2.2)) * (bins - 1)));
           let sum = 0;
           for (let j = start; j < end; j++) sum += freqData[j];
           const avg = sum / (end - start);
           const amplitude = avg / 255;
-          const target = Math.pow(amplitude, 0.78) * VIZ_ROWS;
+          const target = Math.pow(amplitude, 0.62) * VIZ_ROWS;
           beatBars[i] = beatBars[i] + (target - beatBars[i]) * 0.42;
         }
       } else {
@@ -230,7 +233,7 @@ export default class PlayerCommand {
                   : threshold === 2        ? FG_YELLOW
                   :                         FG_GREEN;
           }
-          out += color + ch + ch + RESET; // 2 chars per bar
+          out += color + ch + RESET;
         }
       }
       return out;
@@ -438,7 +441,7 @@ export default class PlayerCommand {
 
       // ── Visualizer placeholder ────────────────────────────────────────────
       for (let vr = 0; vr < VIZ_ROWS; vr++) {
-        out += goto(VIZ_START_ROW + vr, 3) + DIM + FG_GREEN + '░░'.repeat(VIZ_COLS) + RESET;
+        out += goto(VIZ_START_ROW + vr, 3) + DIM + FG_GREEN + '░'.repeat(VIZ_COLS) + RESET;
       }
 
       // ── Separator ────────────────────────────────────────────────────────
