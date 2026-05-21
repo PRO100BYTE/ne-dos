@@ -56,7 +56,7 @@ export default class PlayerCommand {
 
     // ── Layout constants ───────────────────────────────────────────────────────
     const VIZ_ROWS      = 11;                       // rows for the visualizer (+5 for extra punch)
-    const VIZ_COLS      = Math.max(16, COLS);       // full-width frequency bands
+    let VIZ_COLS        = Math.max(16, term.cols);  // full-width frequency bands (dynamic on resize)
     const HDR_ROWS      = 3;                        // title header rows 1-3
     // Row 4: separator
     // Row 5: now playing
@@ -160,6 +160,19 @@ export default class PlayerCommand {
     let prevFreqData = null;
     let vizPeak = 0.08;
 
+    const ensureVizWidth = () => {
+      const colsNow = Math.max(16, term.cols);
+      if (colsNow === VIZ_COLS) return;
+      if (colsNow > VIZ_COLS) {
+        beatBars = beatBars.concat(Array(colsNow - VIZ_COLS).fill(0));
+        barEnvelope = barEnvelope.concat(Array(colsNow - VIZ_COLS).fill(0));
+      } else {
+        beatBars = beatBars.slice(0, colsNow);
+        barEnvelope = barEnvelope.slice(0, colsNow);
+      }
+      VIZ_COLS = colsNow;
+    };
+
     const cleanupAudioGraph = () => {
       try { if (sourceNode) sourceNode.disconnect(); } catch {}
       try { if (analyser) analyser.disconnect(); } catch {}
@@ -200,6 +213,7 @@ export default class PlayerCommand {
 
     const animateBars = () => {
       if (isExiting) return;
+      ensureVizWidth();
       if (!state.playing) {
         // Keep rendering while paused so bars fall smoothly instead of vanishing.
         barEnvelope = barEnvelope.map(v => Math.max(0, v * 0.74));
@@ -295,6 +309,7 @@ export default class PlayerCommand {
 
     // Render the visualizer in-place (no clearScreen, just overwrite the rows)
     const renderViz = () => {
+      ensureVizWidth();
       let out = '';
       const BLOCKS = ' ▁▂▃▄▅▆▇█';
       for (let vr = 0; vr < VIZ_ROWS; vr++) {
@@ -489,6 +504,7 @@ export default class PlayerCommand {
     // ── Full screen render ────────────────────────────────────────────────────
     const renderAll = () => {
       if (isExiting) return;
+      ensureVizWidth();
       const trackName = playlist.length > 0 ? playlist[state.trackIdx] : '(no tracks)';
       const playIcon  = state.playing ? '▶' : '⏸';
       const volPct    = Math.round(state.volume * 100);
