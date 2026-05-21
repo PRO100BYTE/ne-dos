@@ -38,6 +38,7 @@ import NcCommand from "./commands/Apps/nc";
 import PaintCommand from "./commands/Apps/paint";
 import PlayerCommand from "./commands/Apps/player";
 import EditCommand from "./commands/Apps/edit";
+import FullscreenCommand from "./commands/System/fullscreen";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -50,6 +51,7 @@ export const registerAllCommands = () => {
   registeredCommands['command'] = new CommandCOMCommand();
   registeredCommands['status'] = new StatusCommand();
   registeredCommands['reboot'] = new RebootCommand();
+  registeredCommands['fullscreen'] = new FullscreenCommand();
 
   // Filesystem commands
   registeredCommands['dir'] = new DirectoryCommand();

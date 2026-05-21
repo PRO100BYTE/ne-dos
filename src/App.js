@@ -601,20 +601,64 @@ function App() {
     runBios().then(runLoading).then(startShell);
 
     // System hotkey: Shift+F11 toggles fullscreen mode
-    const onSystemKeyDown = (e) => {
-      if (e.key === 'F11' && e.shiftKey) {
-        e.preventDefault();
-        if (document.fullscreenElement) {
-          document.exitFullscreen().catch(() => {});
-        } else {
-          const rootEl = document.documentElement;
-          if (rootEl && rootEl.requestFullscreen) {
-            rootEl.requestFullscreen().catch(() => {});
-          }
+    const lockBrowserKeys = async () => {
+      try {
+        if (navigator.keyboard && navigator.keyboard.lock) {
+          await navigator.keyboard.lock(['Escape', 'F11']);
+        }
+      } catch {}
+    };
+
+    const unlockBrowserKeys = () => {
+      try {
+        if (navigator.keyboard && navigator.keyboard.unlock) {
+          navigator.keyboard.unlock();
+        }
+      } catch {}
+    };
+
+    const toggleFullscreen = () => {
+      if (document.fullscreenElement) {
+        unlockBrowserKeys();
+        document.exitFullscreen().catch(() => {});
+      } else {
+        const rootEl = document.documentElement;
+        if (rootEl && rootEl.requestFullscreen) {
+          rootEl.requestFullscreen()
+            .then(() => lockBrowserKeys())
+            .catch(() => {});
         }
       }
     };
-    window.addEventListener('keydown', onSystemKeyDown);
+    window.__nedosToggleFullscreen = toggleFullscreen;
+
+    const onFullscreenChange = () => {
+      if (document.fullscreenElement) {
+        lockBrowserKeys();
+      } else {
+        unlockBrowserKeys();
+      }
+    };
+
+    // Capture F11 / Shift+F11 / Esc to suppress browser defaults,
+    // but let events continue to xterm/TUI apps.
+    const onSystemKeyDown = (e) => {
+      if (e.key === 'F11') {
+        e.preventDefault();
+        if (e.shiftKey) {
+          toggleFullscreen();
+        }
+        return;
+      }
+
+      if (e.key === 'Escape' && document.fullscreenElement) {
+        e.preventDefault();
+      }
+    };
+    
+    // Use capture phase to intercept before xterm
+    document.addEventListener('keydown', onSystemKeyDown, true);
+    document.addEventListener('fullscreenchange', onFullscreenChange);
 
     // Helper: replace current command line on terminal
     const replaceCurrentInput = (newValue) => {
@@ -722,7 +766,9 @@ function App() {
     };
 
     return () => {
-      window.removeEventListener('keydown', onSystemKeyDown);
+      document.removeEventListener('keydown', onSystemKeyDown, true);
+      document.removeEventListener('fullscreenchange', onFullscreenChange);
+      unlockBrowserKeys();
       try { term.dispose(); } catch {}
     };
   }, []);
