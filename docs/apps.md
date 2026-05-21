@@ -31,11 +31,14 @@ Launched with the `nc` command.
 | `↑` / `↓` | Move cursor |
 | `Enter` | Open directory |
 | `Backspace` | Go to parent directory |
-| `F5` | Copy selected file to the other panel |
-| `F6` | Move (rename) selected file |
+| `F1` | Show keybinding reference in status bar |
+| `F3` | View file in pager (or enter directory) |
+| `F5` | Copy selected entry to other panel (recursive for folders, editable destination) |
+| `F6` | Move / rename selected entry (editable destination) |
 | `F7` | Create new directory |
-| `F8` | Delete selected file/directory |
-| `F10` / `Esc` | Exit NC, return to shell |
+| `F8` | Delete selected entry with Y/N confirmation (recursive for folders) |
+| `PgUp` / `PgDn` | Scroll file list by page |
+| `F10` | Exit NC, return to shell (bare `Esc` is **not** a quit key) |
 
 ---
 
@@ -61,13 +64,21 @@ Launched with the `paint` command.
 | Key | Action |
 |---|---|
 | Arrow keys | Move cursor |
-| `Space` | Place current character |
-| `1`–`9` | Select brush character |
+| `Space` | Draw with current brush at cursor |
+| Any printable char | Draw that character and advance cursor |
+| `b` | Cycle brush character |
 | `c` | Cycle colour |
 | `s` | Save canvas to BrowserFS (`/paint/<name>.txt`) |
 | `l` | Load canvas from BrowserFS |
 | `n` | New (clear canvas) |
+| `Delete` | Erase character at cursor |
 | `Esc` | Exit Paint |
+
+You can pass a filename argument to pre-fill the save/load name:
+
+```
+paint myart
+```
 
 ---
 
@@ -107,7 +118,40 @@ Reads `.mp3` / `.ogg` / `.wav` files stored in the BrowserFS directory `/music/`
 |---|---|
 | `Space` | Play / Pause |
 | `↑` / `↓` | Previous / next track |
-| `←` / `→` | Seek backward / forward 5 s |
-| `+` / `-` | Volume up / down |
+| `←` / `→` | Seek ±5 s |
+| `Shift+←` / `Shift+→` | Seek ±30 s |
+| `+` / `-` | Volume +5 % / −5 % |
+| `1`–`9`, `0` | Jump to track 1–9 / 10 |
 | `s` | Toggle shuffle |
+| `r` | Toggle repeat (one track) |
+| `a` | Toggle repeat all |
 | `Esc` | Exit player |
+
+You can pass a starting track name:
+
+```
+player mysong.mp3
+```
+
+---
+
+## `edit` — Text Editor
+
+Launched with `edit [filepath]`. Creates the file if it does not exist.
+
+### Key Bindings
+
+| Key | Action |
+|---|---|
+| Arrow keys | Move cursor |
+| `Home` / `End` | Start / end of line |
+| `PgUp` / `PgDn` | Scroll page |
+| `Enter` | Insert new line |
+| `Backspace` | Delete character before cursor |
+| `Delete` | Delete character at cursor |
+| `Tab` | Insert 4 spaces |
+| `Ctrl+S` | Save file |
+| `Ctrl+X` | Save and exit |
+| `Ctrl+Q` | Quit without saving |
+
+The title bar shows `*` when there are unsaved changes. Horizontal scroll is automatic when the line exceeds the terminal width.

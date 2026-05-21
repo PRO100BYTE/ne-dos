@@ -13,6 +13,7 @@ const FG_YELLOW  = CSI + '33m';
 const FG_GREEN   = CSI + '32m';
 const FG_RED     = CSI + '31m';
 const FG_BLACK   = CSI + '30m';
+const FG_BLUE    = CSI + '34m';
 const BG_BLUE    = CSI + '44m';
 const BG_BLACK   = CSI + '40m';
 

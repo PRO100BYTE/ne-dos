@@ -61,14 +61,16 @@
 
 ## TUI Applications (v1.3.0+)
 
-| Command | Description |
-|---|---|
-| `nc` | Norton Commander–style two-panel file manager |
-| `paint` | ASCII/block-character paint program |
-| `player` | Music player that reads audio files from BrowserFS |
+| Command | Syntax | Description |
+|---|---|---|
+| `nc` | `nc` | Norton Commander–style two-panel file manager |
+| `paint` | `paint [filename]` | ASCII/block-character paint program; opens `filename` from `/paint/` if given |
+| `player` | `player [trackname]` | Music player; starts at `trackname` in `/music/` if given |
+| `edit` | `edit [filepath]` | Fullscreen TUI text editor; creates or opens the given file |
 
 ## Input Features (v1.3.0+)
 
 - **History navigation**: Press `↑` / `↓` arrows to cycle through previous commands.
 - **Ctrl+C**: Cancel current input and show a new prompt.
 - **Backspace**: Delete last character.
+- **Empty Enter**: Pressing Enter on an empty line shows a new prompt (no error).
