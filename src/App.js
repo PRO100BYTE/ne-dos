@@ -600,6 +600,22 @@ function App() {
 
     runBios().then(runLoading).then(startShell);
 
+    // System hotkey: Shift+F11 toggles fullscreen mode
+    const onSystemKeyDown = (e) => {
+      if (e.key === 'F11' && e.shiftKey) {
+        e.preventDefault();
+        if (document.fullscreenElement) {
+          document.exitFullscreen().catch(() => {});
+        } else {
+          const rootEl = document.documentElement;
+          if (rootEl && rootEl.requestFullscreen) {
+            rootEl.requestFullscreen().catch(() => {});
+          }
+        }
+      }
+    };
+    window.addEventListener('keydown', onSystemKeyDown);
+
     // Helper: replace current command line on terminal
     const replaceCurrentInput = (newValue) => {
       // Erase current input: move cursor back and clear to end of line
@@ -703,6 +719,11 @@ function App() {
         term.writeln(e.message);
       }
       prompt(term);
+    };
+
+    return () => {
+      window.removeEventListener('keydown', onSystemKeyDown);
+      try { term.dispose(); } catch {}
     };
   }, []);
 
