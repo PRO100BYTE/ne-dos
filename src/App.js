@@ -59,6 +59,7 @@ function App() {
     // TUI apps call term._setAppMode(true) to suppress the shell input handler
     let appMode = false;
     term._setAppMode = (val) => { appMode = val; };
+    let rebootInProgress = false;
 
     let currentDirectory = '/';
     let command = '';
@@ -396,7 +397,11 @@ function App() {
         term.write(clearScreen() + hideCursor());
         term.write(goto(Math.max(2, Math.floor(ROWS / 2)), 2) + BOLD + FG_YELLOW + 'Rebooting system...' + RESET);
         setTimeout(() => {
-          window.location.reload();
+          if (typeof window.__nedosRebootSystem === 'function') {
+            window.__nedosRebootSystem();
+          } else {
+            window.location.reload();
+          }
         }, 500);
       };
 
@@ -606,7 +611,27 @@ function App() {
       }
     };
 
-    runBios().then(runLoading).then(startShell);
+    const rebootSystem = async () => {
+      if (rebootInProgress) return;
+      rebootInProgress = true;
+      try {
+        // Force-stop active TUI app (e.g., player audio) before rebooting shell.
+        if (typeof window.__nedosActiveAppCleanup === 'function') {
+          window.__nedosActiveAppCleanup();
+        }
+        window.__nedosActiveAppCleanup = null;
+
+        biosAborted = false;
+        await runBios();
+        await runLoading();
+        startShell();
+      } finally {
+        rebootInProgress = false;
+      }
+    };
+    window.__nedosRebootSystem = rebootSystem;
+
+    rebootSystem();
 
     // System hotkey: Shift+F11 toggles fullscreen mode
     const lockBrowserKeys = async () => {
@@ -779,6 +804,7 @@ function App() {
           window.__nedosActiveAppCleanup();
         }
         window.__nedosActiveAppCleanup = null;
+        window.__nedosRebootSystem = null;
       } catch {}
       document.removeEventListener('keydown', onSystemKeyDown, true);
       document.removeEventListener('fullscreenchange', onFullscreenChange);
