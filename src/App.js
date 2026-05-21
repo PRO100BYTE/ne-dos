@@ -163,7 +163,7 @@ function App() {
     };
 
     const applyColorScheme = () => {
-      const idx = getBiosSetting('color_scheme', 0);
+      const idx = getBiosSetting('color_scheme', 2);
       if (idx === 1) {
         term.options.theme = { background: '#1b1200', foreground: '#ffb347', cursor: '#ffb347' };
       } else if (idx === 2) {
@@ -295,7 +295,7 @@ function App() {
           id: 'color_scheme',
           label: 'Terminal Color Scheme',
           options: ['Classic Green', 'Amber', 'Cool White', 'Solarized'],
-          defaultIdx: 0,
+          defaultIdx: 2,
         },
         {
           id: 'cpu_speed',
