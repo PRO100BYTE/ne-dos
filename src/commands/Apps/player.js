@@ -453,28 +453,7 @@ export default class PlayerCommand {
     }); // end Promise
   }
 }
-const BOLD = CSI + '1m';
-const DIM = CSI + '2m';
-const REVERSE = CSI + '7m';
-const FG_WHITE = CSI + '37m';
-const FG_CYAN = CSI + '36m';
-const FG_YELLOW = CSI + '33m';
-const FG_GREEN = CSI + '32m';
-const FG_BLACK = CSI + '30m';
-const BG_BLACK = CSI + '40m';
-const BG_BLUE = CSI + '44m';
-const BG_CYAN = CSI + '46m';
 
-const goto = (r, c) => `${CSI}${r};${c}H`;
-const clearScreen = () => `${CSI}2J${CSI}H`;
-const hideCursor = () => `${CSI}?25l`;
-const showCursor = () => `${CSI}?25h`;
-
-const AUDIO_EXTENSIONS = ['.mp3', '.ogg', '.wav', '.flac', '.aac'];
-
-// ─── Player Command ───────────────────────────────────────────────────────────
-export default class PlayerCommand {
-  description() { return "Music player — reads audio from BrowserFS /music/"; }
   help(term) {
     term.writeln("Usage: player");
     term.writeln("  Upload audio files first with: upload");
