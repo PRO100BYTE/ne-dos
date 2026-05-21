@@ -315,6 +315,12 @@ function App() {
           options: ['Enabled', 'Disabled'],
           defaultIdx: 1,
         },
+        {
+          id: 'reset_defaults',
+          label: 'Load Factory Defaults',
+          options: ['Press Enter'],
+          defaultIdx: 0,
+        },
       ];
 
       // Load current values from localStorage
@@ -327,6 +333,7 @@ function App() {
 
       let cursor = 0;
       let dirty = false;
+      let setupMessage = '';
 
       const gc = (r, c) => `${CSI}${r};${c}H`;
       const W = Math.min(COLS - 4, 78);
@@ -366,7 +373,9 @@ function App() {
         out += RESET;
 
         // Status (if dirty)
-        if (dirty) {
+        if (setupMessage) {
+          out += gc(divRow + 2, leftCol) + FG_CYAN + BOLD + ('  ' + setupMessage).padEnd(W, ' ') + RESET;
+        } else if (dirty) {
           out += gc(divRow + 2, leftCol) + FG_YELLOW + BOLD + '  * Modified — press F10 to save' + RESET;
         }
 
@@ -397,16 +406,34 @@ function App() {
           case '\x1b[D': // Left — prev option
           case '\x1b[Z': { // Shift+Tab
             const s = SETUP_SETTINGS[cursor];
+            if (s.id === 'reset_defaults') {
+              setupMessage = 'Use Enter to load factory defaults';
+              renderSetup();
+              return;
+            }
             values[s.id] = (values[s.id] - 1 + s.options.length) % s.options.length;
             dirty = true;
+            setupMessage = '';
             renderSetup();
             return;
           }
           case '\x1b[C': // Right — next option
           case '\r': {   // Enter — toggle/next
             const s = SETUP_SETTINGS[cursor];
+            if (s.id === 'reset_defaults') {
+              SETUP_SETTINGS.forEach((item) => {
+                if (item.id !== 'reset_defaults') {
+                  values[item.id] = item.defaultIdx;
+                }
+              });
+              dirty = true;
+              setupMessage = 'Factory defaults loaded (press F10 to save)';
+              renderSetup();
+              return;
+            }
             values[s.id] = (values[s.id] + 1) % s.options.length;
             dirty = true;
+            setupMessage = '';
             renderSetup();
             return;
           }
