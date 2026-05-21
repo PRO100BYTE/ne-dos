@@ -137,17 +137,70 @@ export default class PlayerCommand {
     // ── Visualizer bars ───────────────────────────────────────────────────────
     let beatBars  = Array(VIZ_COLS).fill(0);
     let animFrame = null;
+    let audioCtx = null;
+    let analyser = null;
+    let sourceNode = null;
+    let freqData = null;
+
+    const cleanupAudioGraph = () => {
+      try { if (sourceNode) sourceNode.disconnect(); } catch {}
+      try { if (analyser) analyser.disconnect(); } catch {}
+      sourceNode = null;
+      analyser = null;
+      freqData = null;
+      if (audioCtx) {
+        const ctx = audioCtx;
+        audioCtx = null;
+        try { ctx.close(); } catch {}
+      }
+    };
+
+    const setupAudioGraph = (audio) => {
+      cleanupAudioGraph();
+      try {
+        const Ctx = window.AudioContext || window.webkitAudioContext;
+        if (!Ctx) return;
+        audioCtx = new Ctx();
+        sourceNode = audioCtx.createMediaElementSource(audio);
+        analyser = audioCtx.createAnalyser();
+        analyser.fftSize = 1024;
+        analyser.smoothingTimeConstant = 0.72;
+        sourceNode.connect(analyser);
+        analyser.connect(audioCtx.destination);
+        freqData = new Uint8Array(analyser.frequencyBinCount);
+      } catch {
+        cleanupAudioGraph();
+      }
+    };
 
     const stopAnim = () => {
       if (animFrame !== null) { clearTimeout(animFrame); animFrame = null; }
     };
 
     const animateBars = () => {
-      if (!state.playing) { beatBars = Array(VIZ_COLS).fill(0); return; }
-      beatBars = beatBars.map(v => {
-        const target = Math.random() * VIZ_ROWS;
-        return v + (target - v) * 0.35;
-      });
+      if (!state.playing) {
+        beatBars = Array(VIZ_COLS).fill(0);
+        term.write(hideCursor() + renderViz());
+        return;
+      }
+
+      if (analyser && freqData) {
+        analyser.getByteFrequencyData(freqData);
+        const bins = freqData.length;
+        for (let i = 0; i < VIZ_COLS; i++) {
+          const start = Math.floor(i * bins / VIZ_COLS);
+          const end = Math.max(start + 1, Math.floor((i + 1) * bins / VIZ_COLS));
+          let sum = 0;
+          for (let j = start; j < end; j++) sum += freqData[j];
+          const avg = sum / (end - start);
+          const amplitude = avg / 255;
+          const target = Math.pow(amplitude, 0.78) * VIZ_ROWS;
+          beatBars[i] = beatBars[i] + (target - beatBars[i]) * 0.42;
+        }
+      } else {
+        beatBars = beatBars.map(v => Math.max(0, v * 0.85));
+      }
+
       term.write(hideCursor() + renderViz());
       animFrame = setTimeout(animateBars, 80);
     };
@@ -206,13 +259,15 @@ export default class PlayerCommand {
     const loadTrack = (idx, autoPlay = false) => {
       stopAnim();
       if (state.audio) { state.audio.pause(); state.audio.src = ''; state.audio = null; }
+      cleanupAudioGraph();
       if (!playlist.length) return;
       const url = getUrl(playlist[idx]);
-      if (!url) { state.status = `Cannot load: ${playlist[idx]}`; return; }
+      if (!url) { setStatus(`Cannot load: ${playlist[idx]}`); return; }
       const audio = new Audio(url);
       audio.volume = state.volume;
       audio.loop   = state.repeat;
       state.audio  = audio;
+      setupAudioGraph(audio);
       audio.addEventListener('ended', () => {
         if (state.repeat) {
           // Repeat one: reload current track
@@ -235,7 +290,10 @@ export default class PlayerCommand {
         renderAll();
       });
       if (autoPlay) {
-        audio.play().catch(e => { state.status = `Play error: ${e.message}`; });
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
+        audio.play().catch(e => { setStatus(`Play error: ${e.message}`); });
         state.playing = true;
         animateBars();
       }
@@ -247,6 +305,9 @@ export default class PlayerCommand {
       if (state.playing) {
         state.audio.pause(); state.playing = false; stopAnim();
       } else {
+        if (audioCtx && audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
         state.audio.play().catch(e => { setStatus(`Play error: ${e.message}`); });
         state.playing = true; animateBars();
       }
@@ -438,7 +499,9 @@ export default class PlayerCommand {
     const doExit = () => {
       stopAnim();
       clearInterval(progressInterval);
+      if (state.statusTimeout) clearTimeout(state.statusTimeout);
       if (state.audio) { state.audio.pause(); state.audio.src = ''; }
+      cleanupAudioGraph();
       Object.values(state.objectUrls).forEach(u => URL.revokeObjectURL(u));
       if (disposable) disposable.dispose();
       if (term._setAppMode) term._setAppMode(false);
