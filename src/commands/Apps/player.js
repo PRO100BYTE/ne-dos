@@ -205,27 +205,20 @@ export default class PlayerCommand {
       if (analyser && freqData) {
         analyser.getByteFrequencyData(freqData);
         const bins = freqData.length;
-        const nyquist = (audioCtx && audioCtx.sampleRate ? audioCtx.sampleRate : 44100) / 2;
-        const minHz = 30;
-        const maxHz = Math.min(16000, nyquist);
-        const logMin = Math.log(minHz);
-        const logRange = Math.log(maxHz) - logMin;
-        let frameMax = 0;
+        let frameMean = 0;
         const profiles = {
-          Low:    { sMul: 0.46, rise: 0.46, fall: 0.14, gainMin: 0.34, gainMax: 0.62, capRows: VIZ_ROWS * 0.58, gate: 0.05 },
-          Normal: { sMul: 0.72, rise: 0.62, fall: 0.20, gainMin: 0.46, gainMax: 0.84, capRows: VIZ_ROWS * 0.82, gate: 0.03 },
-          High:   { sMul: 0.98, rise: 0.78, fall: 0.30, gainMin: 0.56, gainMax: 1.00, capRows: VIZ_ROWS * 0.96, gate: 0.02 },
+          Low:    { sMul: 0.74, rise: 0.52, fall: 0.18, gainMin: 0.62, gainMax: 1.00, capRows: VIZ_ROWS * 0.72, gate: 0.02, gamma: 1.06, targetMean: 0.24 },
+          Normal: { sMul: 0.96, rise: 0.66, fall: 0.24, gainMin: 0.74, gainMax: 1.16, capRows: VIZ_ROWS * 0.88, gate: 0.015, gamma: 0.98, targetMean: 0.31 },
+          High:   { sMul: 1.14, rise: 0.82, fall: 0.32, gainMin: 0.86, gainMax: 1.28, capRows: VIZ_ROWS * 0.98, gate: 0.01, gamma: 0.90, targetMean: 0.38 },
         };
         const profile = profiles[state.vizSensitivity] || profiles.Low;
 
         for (let i = 0; i < VIZ_COLS; i++) {
-          // Log-frequency bands from 30 Hz..16 kHz spread across full width.
+          // Frequency mapping that keeps energy distributed across the whole width.
           const from = i / VIZ_COLS;
           const to = (i + 1) / VIZ_COLS;
-          const fStart = Math.exp(logMin + from * logRange);
-          const fEnd = Math.exp(logMin + to * logRange);
-          const start = Math.max(0, Math.min(bins - 1, Math.floor((fStart / nyquist) * bins)));
-          const end = Math.max(start + 1, Math.min(bins, Math.floor((fEnd / nyquist) * bins)));
+          const start = Math.max(0, Math.min(bins - 1, Math.floor(Math.pow(from, 1.35) * (bins - 1))));
+          const end = Math.max(start + 1, Math.min(bins, Math.floor(Math.pow(to, 1.35) * (bins - 1))));
           let sum = 0;
           let flux = 0;
           for (let j = start; j < end; j++) sum += freqData[j];
@@ -233,13 +226,14 @@ export default class PlayerCommand {
           const avg = sum / (end - start);
           const delta = flux / (end - start);
 
-          // Dynamic range shaping: noise gate + transient response without full-height clipping.
-          const avgNorm = Math.max(0, (avg - 24) / 231);
-          const deltaNorm = Math.max(0, (delta - 12) / 243);
-          const bandTilt = 1 - (i / VIZ_COLS) * 0.18;
-          const raw = (avgNorm * 0.82 + deltaNorm * 0.18) * bandTilt * profile.sMul;
-          const target = raw > profile.gate ? Math.pow(raw, 1.30) : 0;
-          if (target > frameMax) frameMax = target;
+          // Dynamic range shaping with lightweight noise gate and transient boost.
+          const avgNorm = Math.max(0, (avg - 10) / 245);
+          const deltaNorm = Math.max(0, (delta - 5) / 250);
+          const bandTilt = 0.96 + (i / VIZ_COLS) * 0.12;
+          const raw = (avgNorm * 0.80 + deltaNorm * 0.20) * bandTilt * profile.sMul;
+          const gated = Math.max(0, raw - profile.gate);
+          const target = Math.pow(Math.min(1, gated), profile.gamma);
+          frameMean += target;
 
           // Fast rise, slower fall for a lively but readable spectrum.
           if (target > beatBars[i]) {
@@ -249,9 +243,11 @@ export default class PlayerCommand {
           }
         }
 
-        // Conservative adaptive gain + hard cap by sensitivity profile.
-        vizPeak = Math.max(frameMax, vizPeak * 0.985);
-        const gain = Math.max(profile.gainMin, Math.min(profile.gainMax, 0.65 / Math.max(vizPeak, 0.24)));
+        // Adaptive normalization by average energy (not peak), so the whole width breathes.
+        frameMean = frameMean / Math.max(1, VIZ_COLS);
+        vizPeak = Math.max(frameMean, vizPeak * 0.96);
+        const meanGain = profile.targetMean / Math.max(vizPeak, 0.05);
+        const gain = Math.max(profile.gainMin, Math.min(profile.gainMax, meanGain));
         for (let i = 0; i < VIZ_COLS; i++) {
           const scaled = Math.max(0, Math.min(1, beatBars[i] * gain));
           beatBars[i] = Math.min(profile.capRows, scaled * VIZ_ROWS);
