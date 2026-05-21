@@ -99,24 +99,122 @@ function App() {
       '                                    T E A M',
     ];
 
-    const BIOS_CHECKS = [
-      { label: 'CPU Type',        value: 'NE-CPU 8086 @ 666 MHz',             ok: true  },
-      { label: 'Math Coprocessor',value: 'Detected',                          ok: true  },
-      { label: 'Memory Test',     value: '640 KB OK',                         ok: true  },
-      { label: 'Extended Memory', value: '1048576 KB OK',                     ok: true  },
-      { label: 'Bus Type',        value: 'ISA/PCI',                           ok: true  },
-      { label: 'Display Type',    value: 'xterm-256color CGA/VGA Compatible', ok: true  },
-      { label: 'Primary HDD',     value: 'BrowserFS IndexedDB Virtual Drive', ok: true  },
-      { label: 'Secondary HDD',   value: 'Not detected',                      ok: false },
-      { label: 'BrowserFS',       value: 'Mounted at /',                      ok: true  },
-      { label: 'Serial Port',     value: 'COM1 – Not available',              ok: false },
-      { label: 'BIOS Version',    value: `PRO100BYTE BIOS v${window['VERSION'] || '1.3.0'} / ${window['BUILD_DATE'] || 'N/A'}`, ok: true },
-    ];
+    const getBiosSetting = (id, defaultIdx = 0) => {
+      const raw = localStorage.getItem('nedos_bios_' + id);
+      const parsed = raw !== null ? parseInt(raw, 10) : defaultIdx;
+      return Number.isFinite(parsed) ? parsed : defaultIdx;
+    };
+
+    const getCpuLabel = () => {
+      const idx = getBiosSetting('cpu_speed', 0);
+      if (idx === 1) return 'NE-CPU 8086 @ 1337 MHz (Turbo)';
+      if (idx === 2) return 'NE-CPU 8086 @ 133 MHz (Safe)';
+      return 'NE-CPU 8086 @ 666 MHz';
+    };
+
+    const getBootDeviceLabel = () => {
+      const idx = getBiosSetting('boot_device', 0);
+      if (idx === 1) return 'RAM Disk (/temp)';
+      if (idx === 2) return 'Network Boot (/netboot)';
+      return 'BrowserFS IndexedDB Virtual Drive';
+    };
+
+    const getPostDelay = () => {
+      const idx = getBiosSetting('bios_delay', 0);
+      if (idx === 1) return Math.floor(Math.random() * 80) + 40;      // fast
+      if (idx === 2) return Math.floor(Math.random() * 2500) + 1500;   // slow
+      return Math.floor(Math.random() * 2900) + 100;                    // random/authentic
+    };
+
+    const runMemoryProbe = () => {
+      try {
+        const mem = new Uint8Array(2 * 1024 * 1024);
+        mem[0] = 0xAA;
+        mem[mem.length - 1] = 0x55;
+        const ok = mem[0] === 0xAA && mem[mem.length - 1] === 0x55;
+        return ok;
+      } catch {
+        return false;
+      }
+    };
+
+    const buildBiosChecks = () => {
+      const memoryTestEnabled = getBiosSetting('memory_test', 0) === 0;
+      const memoryOk = memoryTestEnabled ? runMemoryProbe() : false;
+      return [
+        { label: 'CPU Type',        value: getCpuLabel(),                          ok: true  },
+        { label: 'Math Coprocessor',value: 'Detected',                             ok: true  },
+        { label: 'Memory Test',     value: memoryTestEnabled ? (memoryOk ? '640 KB OK' : 'FAILED') : 'Skipped by BIOS Setup', ok: memoryTestEnabled ? memoryOk : false },
+        { label: 'Extended Memory', value: memoryTestEnabled ? (memoryOk ? '1048576 KB OK' : 'Unavailable') : 'Skipped by BIOS Setup', ok: memoryTestEnabled ? memoryOk : false },
+        { label: 'Bus Type',        value: 'ISA/PCI',                              ok: true  },
+        { label: 'Display Type',    value: 'xterm-256color CGA/VGA Compatible',    ok: true  },
+        { label: 'Primary HDD',     value: getBootDeviceLabel(),                   ok: true  },
+        { label: 'Secondary HDD',   value: 'Not detected',                         ok: false },
+        { label: 'BrowserFS',       value: 'Mounted at /',                         ok: true  },
+        { label: 'Serial Port',     value: 'COM1 - Not available',                 ok: false },
+        { label: 'BIOS Version',    value: `PRO100BYTE BIOS v${window['VERSION'] || '1.3.0'} / ${window['BUILD_DATE'] || 'N/A'}`, ok: true },
+      ];
+    };
+
+    const applyColorScheme = () => {
+      const idx = getBiosSetting('color_scheme', 0);
+      if (idx === 1) {
+        term.options.theme = { background: '#1b1200', foreground: '#ffb347', cursor: '#ffb347' };
+      } else if (idx === 2) {
+        term.options.theme = { background: '#0a0a0a', foreground: '#e6f1ff', cursor: '#e6f1ff' };
+      } else if (idx === 3) {
+        term.options.theme = { background: '#002b36', foreground: '#93a1a1', cursor: '#b58900' };
+      } else {
+        term.options.theme = { background: '#000000', foreground: '#00ff66', cursor: '#00ff66' };
+      }
+    };
+
+    const clearDirRecursive = (p) => {
+      if (!window.fs.existsSync(p)) return;
+      window.fs.readdirSync(p).forEach((name) => {
+        const child = `${p}/${name}`.replace(/\/+/g, '/');
+        const st = window.fs.statSync(child);
+        if (st.isDirectory()) {
+          clearDirRecursive(child);
+          window.fs.rmdirSync(child);
+        } else {
+          window.fs.unlinkSync(child);
+        }
+      });
+    };
+
+    const applyBootDevice = async () => {
+      const idx = getBiosSetting('boot_device', 0);
+      if (idx === 1) {
+        // RAM Disk mode: wipe /temp each boot and start there
+        if (!window.fs.existsSync('/temp')) window.fs.mkdirSync('/temp');
+        clearDirRecursive('/temp');
+        currentDirectory = '/temp';
+        return 'RAM Disk ready at /temp';
+      }
+      if (idx === 2) {
+        // Network Boot mode: fetch remote marker and boot from /netboot
+        if (!window.fs.existsSync('/netboot')) window.fs.mkdirSync('/netboot');
+        try {
+          const res = await fetch('https://raw.githubusercontent.com/PRO100BYTE/ne-dos/master/README.md');
+          const txt = await res.text();
+          window.fs.writeFileSync('/netboot/remote_boot.txt', txt.slice(0, 2048));
+          currentDirectory = '/netboot';
+          return 'Network boot loaded remote marker';
+        } catch (e) {
+          window.fs.writeFileSync('/netboot/remote_boot_error.txt', String(e && e.message ? e.message : 'Network unavailable'));
+          currentDirectory = '/netboot';
+          return 'Network boot fallback (offline)';
+        }
+      }
+      currentDirectory = '/';
+      return 'Booted from BrowserFS /';
+    };
 
     let biosAborted = false;
 
     // ── BIOS Setup TUI ────────────────────────────────────────────────────────
-    const runBiosSetup = (term, onExit) => {
+    const runBiosSetup = (term) => {
       const COLS = term.cols;
       const ROWS = term.rows;
       const SETUP_VERSION = 'PRO100BYTE BIOS SETUP UTILITY v1.0';
@@ -219,6 +317,14 @@ function App() {
 
       renderSetup();
 
+      const rebootFromSetup = () => {
+        term.write(clearScreen() + hideCursor());
+        term.write(goto(Math.max(2, Math.floor(ROWS / 2)), 2) + BOLD + FG_YELLOW + 'Rebooting system...' + RESET);
+        setTimeout(() => {
+          window.location.reload();
+        }, 500);
+      };
+
       const setupDisposable = term.onData((key) => {
         switch (key) {
           // Navigation
@@ -253,14 +359,12 @@ function App() {
               localStorage.setItem('nedos_bios_' + s.id, String(values[s.id]));
             });
             setupDisposable.dispose();
-            term.write(clearScreen());
-            onExit();
+            rebootFromSetup();
             return;
           }
           case '\x1b': // Esc — discard & exit
             setupDisposable.dispose();
-            term.write(clearScreen());
-            onExit();
+            rebootFromSetup();
             return;
           default:
             break;
@@ -270,6 +374,7 @@ function App() {
 
     const runBios = () => new Promise((resolveBios) => {
       term.write(hideCursor() + clearScreen());
+      const BIOS_CHECKS = buildBiosChecks();
 
       // Draw logo (centered, cyan)
       const COLS = term.cols;
@@ -293,8 +398,9 @@ function App() {
         // Del = \x1b[3~ or \x7f, F2 = \x1bOS, \x1b[12~, \x1bOQ, or \x1b[[B
         if (key === '\x1b[3~' || key === '\x7f' || key === '\x1bOS' || key === '\x1b[12~' || key === '\x1bOQ' || key === '\x1b[[B') {
           // Enter BIOS Setup
+          biosAborted = true;
           skipDisposable.dispose();
-          runBiosSetup(term, resolveBios);
+          runBiosSetup(term);
           return;
         }
         biosAborted = true;
@@ -321,17 +427,17 @@ function App() {
         const label  = chk.label.padEnd(22, '.');
         const status = chk.ok ? (BOLD + FG_GREEN + '[ OK ]' + RESET) : (DIM + FG_RED + '[SKIP]' + RESET);
         term.write(goto(row++, 2) + FG_WHITE + label + ' ' + status + ' ' + DIM + FG_WHITE + chk.value + RESET);
-        setTimeout(drawNext, Math.floor(Math.random() * 2900) + 100);
+        setTimeout(drawNext, getPostDelay());
       };
 
       setTimeout(drawNext, 200);
     });
 
-    const date = new Date();
-    const d = dateFormat(date, "ddd m-dd-yyyy");
-    const t = dateFormat(date, "HH:MM:ss.L");
-
     const startShell = () => {
+      applyColorScheme();
+      const now = new Date();
+      const d = dateFormat(now, 'ddd m-dd-yyyy');
+      const t = dateFormat(now, 'HH:MM:ss.L');
       term.write(showCursor() + clearScreen());
       term.writeln(`Current date is ${d}`);
       term.writeln(`Current time is ${t}`);
@@ -342,27 +448,34 @@ function App() {
       term.writeln(`Built: ${window['BUILD_DATE']}`);
       term.writeln('');
 
+      if (getBiosSetting('boot_sound', 1) === 0) {
+        term.write('\x07');
+      }
+
       prompt(term);
     };
 
-    const runLoading = () => new Promise((resolve) => {
+    const runLoading = async () => {
       term.write(hideCursor() + clearScreen());
 
       const COLS = term.cols;
+      const bootMode = getBootDeviceLabel();
       // ASCII logo (same as BIOS)
       let out = '';
       LOGO.forEach((line, i) => {
         out += goto(3 + i, 1) + BOLD + FG_CYAN + line + RESET + '\r\n';
       });
       out += '\r\n' + goto(11, 1) + BOLD + FG_YELLOW + 'Loading NE-DOS...'.padStart(Math.floor(COLS / 2) + 9, ' ') + RESET + '\r\n';
+      out += goto(13, 2) + DIM + FG_WHITE + `Boot device: ${bootMode}` + RESET;
       term.write(out);
 
       // Random delay 3-5 seconds
       const delay = Math.random() * 2000 + 3000;
-      setTimeout(() => {
-        resolve();
-      }, delay);
-    });
+      await Promise.all([
+        applyBootDevice(),
+        new Promise((resolve) => setTimeout(resolve, delay)),
+      ]);
+    };
 
     runBios().then(runLoading).then(startShell);
 
@@ -429,6 +542,12 @@ function App() {
       try {
         let parts = command.split(" ");
         term.write('\r\n');
+
+        const cpuMode = getBiosSetting('cpu_speed', 0);
+        const commandLatency = cpuMode === 1 ? 0 : (cpuMode === 2 ? 140 : 40);
+        if (commandLatency > 0) {
+          await new Promise((resolve) => setTimeout(resolve, commandLatency));
+        }
 
         // Save non-empty commands to history (skip duplicate of last entry)
         const trimmed = command.trim();
