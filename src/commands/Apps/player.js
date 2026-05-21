@@ -134,6 +134,7 @@ export default class PlayerCommand {
     let isExiting = false;
     let audioEndedHandler = null;
     let audioErrorHandler = null;
+    let appCleanupHook = null;
 
     const setStatus = (msg) => {
       if (isExiting) return;
@@ -598,11 +599,20 @@ export default class PlayerCommand {
       }
       cleanupAudioGraph();
       Object.values(state.objectUrls).forEach(u => URL.revokeObjectURL(u));
+      if (window.__nedosActiveAppCleanup === appCleanupHook) {
+        window.__nedosActiveAppCleanup = null;
+      }
       if (disposable) disposable.dispose();
       if (term._setAppMode) term._setAppMode(false);
       term.write(showCursor() + clearScreen());
       resolve();
     };
+
+    // Let the shell force-close this app on dev reload/unmount.
+    appCleanupHook = () => {
+      try { doExit(); } catch {}
+    };
+    window.__nedosActiveAppCleanup = appCleanupHook;
 
     // ── Input handler ─────────────────────────────────────────────────────────
     let disposable;

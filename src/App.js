@@ -40,6 +40,14 @@ function App() {
   const terminalRef = React.useRef(null);
 
   useEffect(() => {
+    // Dev hot-reload safety: stop any previously running TUI app/audio.
+    try {
+      if (typeof window.__nedosActiveAppCleanup === 'function') {
+        window.__nedosActiveAppCleanup();
+      }
+      window.__nedosActiveAppCleanup = null;
+    } catch {}
+
     const term = new Term({ scrollback: 1000 });
     const fitAddon = new FitAddon();
     term.loadAddon(fitAddon);
@@ -766,6 +774,12 @@ function App() {
     };
 
     return () => {
+      try {
+        if (typeof window.__nedosActiveAppCleanup === 'function') {
+          window.__nedosActiveAppCleanup();
+        }
+        window.__nedosActiveAppCleanup = null;
+      } catch {}
       document.removeEventListener('keydown', onSystemKeyDown, true);
       document.removeEventListener('fullscreenchange', onFullscreenChange);
       unlockBrowserKeys();
