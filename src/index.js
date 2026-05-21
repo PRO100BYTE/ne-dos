@@ -23,8 +23,20 @@ BrowserFS.configure({
         }
       }
     },
-    "/temp": {
+    "/tempfs": {
       fs: "InMemory"
+    },
+    "/netboot": {
+      fs: "AsyncMirror",
+      options: {
+        sync: { fs: "InMemory" },
+        async: {
+          fs: "IndexedDB",
+          options: {
+            storeName: "NEDOS_NETBOOT"
+          }
+        }
+      }
     }
   }
 }, () => {
@@ -33,29 +45,29 @@ BrowserFS.configure({
 
   setTimeout(() => {
     try {
-      window.fs.writeFileSync(`/temp/host`, window.location.host);
+      window.fs.writeFileSync(`/tempfs/host`, window.location.host);
     } catch (e) {
     }
 
     try {
-      window.fs.writeFileSync(`/temp/language`, window.navigator.language);
+      window.fs.writeFileSync(`/tempfs/language`, window.navigator.language);
     } catch (e) {
     }
     
     try {
-      window.fs.writeFileSync(`/temp/user-agent`, window.navigator.userAgent);
+      window.fs.writeFileSync(`/tempfs/user-agent`, window.navigator.userAgent);
     } catch (e) {
     }
     
     try {
-      window.fs.writeFileSync(`/temp/user-agent.json`, JSON.stringify(window.navigator.userAgentData, null, 2));
+      window.fs.writeFileSync(`/tempfs/user-agent.json`, JSON.stringify(window.navigator.userAgentData, null, 2));
     } catch (e) {
     }
     
 
     try {
       const { downlink, effectiveType, rtt, saveData } = navigator.connection;
-      window.fs.writeFileSync(`/temp/connection`, JSON.stringify({ downlink, effectiveType, rtt, saveData }, null, 2));
+      window.fs.writeFileSync(`/tempfs/connection`, JSON.stringify({ downlink, effectiveType, rtt, saveData }, null, 2));
     } catch (e) {}
   }, 100);
 

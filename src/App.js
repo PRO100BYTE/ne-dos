@@ -114,7 +114,7 @@ function App() {
 
     const getBootDeviceLabel = () => {
       const idx = getBiosSetting('boot_device', 0);
-      if (idx === 1) return 'RAM Disk (/temp)';
+      if (idx === 1) return 'RAM Disk (/tempfs)';
       if (idx === 2) return 'Network Boot (/netboot)';
       return 'BrowserFS IndexedDB Virtual Drive';
     };
@@ -186,15 +186,16 @@ function App() {
     const applyBootDevice = async () => {
       const idx = getBiosSetting('boot_device', 0);
       if (idx === 1) {
-        // RAM Disk mode: wipe /temp each boot and start there
-        if (!window.fs.existsSync('/temp')) window.fs.mkdirSync('/temp');
-        clearDirRecursive('/temp');
-        currentDirectory = '/temp';
-        return 'RAM Disk ready at /temp';
+        // RAM Disk mode: isolated in-memory tempfs, wiped each boot
+        if (!window.fs.existsSync('/tempfs')) window.fs.mkdirSync('/tempfs');
+        clearDirRecursive('/tempfs');
+        currentDirectory = '/tempfs';
+        return 'RAM Disk ready at /tempfs';
       }
       if (idx === 2) {
-        // Network Boot mode: fetch remote marker and boot from /netboot
+        // Network Boot mode: isolated /netboot volume
         if (!window.fs.existsSync('/netboot')) window.fs.mkdirSync('/netboot');
+        clearDirRecursive('/netboot');
         try {
           const res = await fetch('https://raw.githubusercontent.com/PRO100BYTE/ne-dos/master/README.md');
           const txt = await res.text();
