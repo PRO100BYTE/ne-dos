@@ -348,6 +348,7 @@ function App() {
     const runLoading = () => new Promise((resolve) => {
       term.write(hideCursor() + clearScreen());
 
+      const COLS = term.cols;
       // ASCII logo (same as BIOS)
       let out = '';
       LOGO.forEach((line, i) => {
