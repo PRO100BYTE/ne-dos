@@ -76,6 +76,7 @@ function App() {
     const RESET   = CSI + '0m';
     const BOLD    = CSI + '1m';
     const DIM     = CSI + '2m';
+    const REVERSE = CSI + '7m';
     const FG_WHITE  = CSI + '37m';
     const FG_CYAN   = CSI + '36m';
     const FG_YELLOW = CSI + '33m';
@@ -114,6 +115,159 @@ function App() {
 
     let biosAborted = false;
 
+    // ── BIOS Setup TUI ────────────────────────────────────────────────────────
+    const runBiosSetup = (term, onExit) => {
+      const COLS = term.cols;
+      const ROWS = term.rows;
+      const SETUP_VERSION = 'PRO100BYTE BIOS SETUP UTILITY v1.0';
+
+      // Settings definitions — each has an id, label, options array, default
+      const SETUP_SETTINGS = [
+        {
+          id: 'boot_device',
+          label: 'Boot Device',
+          options: ['BrowserFS VDrive', 'RAM Disk', 'Network Boot'],
+          defaultIdx: 0,
+        },
+        {
+          id: 'memory_test',
+          label: 'Memory Test on Boot',
+          options: ['Enabled', 'Disabled'],
+          defaultIdx: 0,
+        },
+        {
+          id: 'color_scheme',
+          label: 'Terminal Color Scheme',
+          options: ['Classic Green', 'Amber', 'Cool White', 'Solarized'],
+          defaultIdx: 0,
+        },
+        {
+          id: 'cpu_speed',
+          label: 'CPU Speed',
+          options: ['Normal (666 MHz)', 'Turbo (1337 MHz)', 'Safe (133 MHz)'],
+          defaultIdx: 0,
+        },
+        {
+          id: 'bios_delay',
+          label: 'POST Delay Mode',
+          options: ['Random  (Authentic)', 'Fast (Skip delays)', 'Slow  (Dramatic)'],
+          defaultIdx: 0,
+        },
+        {
+          id: 'boot_sound',
+          label: 'Boot Beep',
+          options: ['Enabled', 'Disabled'],
+          defaultIdx: 1,
+        },
+      ];
+
+      // Load current values from localStorage
+      const values = {};
+      SETUP_SETTINGS.forEach(s => {
+        const stored = localStorage.getItem('nedos_bios_' + s.id);
+        const idx = stored !== null ? parseInt(stored, 10) : s.defaultIdx;
+        values[s.id] = Math.max(0, Math.min(s.options.length - 1, idx));
+      });
+
+      let cursor = 0;
+      let dirty = false;
+
+      const gc = (r, c) => `${CSI}${r};${c}H`;
+      const W = Math.min(COLS - 4, 78);
+      const leftCol = Math.max(1, Math.floor((COLS - W) / 2));
+      const topRow = 2;
+
+      const renderSetup = () => {
+        let out = hideCursor() + clearScreen();
+
+        // Header
+        out += gc(topRow, leftCol) + BG_BLUE + FG_WHITE + BOLD;
+        out += ('  ' + SETUP_VERSION).padEnd(W, ' ') + RESET;
+        out += gc(topRow + 1, leftCol) + BG_BLUE + FG_WHITE + '─'.repeat(W) + RESET;
+
+        // Settings rows
+        SETUP_SETTINGS.forEach((s, i) => {
+          const row = topRow + 2 + i;
+          const val = s.options[values[s.id]];
+          const label = s.label.padEnd(30, '.');
+          const valStr = `[ ${val} ]`;
+          const line = `  ${label}  ${valStr}`;
+          if (i === cursor) {
+            out += gc(row, leftCol) + REVERSE + FG_WHITE + BOLD + line.padEnd(W, ' ') + RESET;
+          } else {
+            out += gc(row, leftCol) + FG_WHITE + line + RESET;
+          }
+        });
+
+        // Divider
+        const divRow = topRow + 2 + SETUP_SETTINGS.length;
+        out += gc(divRow, leftCol) + DIM + FG_WHITE + '─'.repeat(W) + RESET;
+
+        // Help row
+        out += gc(divRow + 1, leftCol) + DIM + FG_WHITE;
+        out += '  ↑↓:Select   ←→/Enter:Change   F10:Save&Exit   Esc:Discard';
+        out = out.padEnd(out.length, ' ');
+        out += RESET;
+
+        // Status (if dirty)
+        if (dirty) {
+          out += gc(divRow + 2, leftCol) + FG_YELLOW + BOLD + '  * Modified — press F10 to save' + RESET;
+        }
+
+        term.write(out);
+      };
+
+      renderSetup();
+
+      const setupDisposable = term.onData((key) => {
+        switch (key) {
+          // Navigation
+          case '\x1b[A': // Up
+            cursor = (cursor - 1 + SETUP_SETTINGS.length) % SETUP_SETTINGS.length;
+            renderSetup();
+            return;
+          case '\x1b[B': // Down
+            cursor = (cursor + 1) % SETUP_SETTINGS.length;
+            renderSetup();
+            return;
+          case '\x1b[D': // Left — prev option
+          case '\x1b[Z': { // Shift+Tab
+            const s = SETUP_SETTINGS[cursor];
+            values[s.id] = (values[s.id] - 1 + s.options.length) % s.options.length;
+            dirty = true;
+            renderSetup();
+            return;
+          }
+          case '\x1b[C': // Right — next option
+          case '\r': {   // Enter — toggle/next
+            const s = SETUP_SETTINGS[cursor];
+            values[s.id] = (values[s.id] + 1) % s.options.length;
+            dirty = true;
+            renderSetup();
+            return;
+          }
+          case '\x1b[21~': // F10 — Save & Exit
+          case '\x1b[20~': {
+            // Save all settings to localStorage
+            SETUP_SETTINGS.forEach(s => {
+              localStorage.setItem('nedos_bios_' + s.id, String(values[s.id]));
+            });
+            setupDisposable.dispose();
+            term.write(clearScreen());
+            onExit();
+            return;
+          }
+          case '\x1b': // Esc — discard & exit
+            setupDisposable.dispose();
+            term.write(clearScreen());
+            onExit();
+            return;
+          default:
+            break;
+        }
+      });
+    };
+
     const runBios = () => new Promise((resolveBios) => {
       term.write(hideCursor() + clearScreen());
 
@@ -134,8 +288,15 @@ function App() {
       let row = 14;
       let idx = 0;
 
-      // Keypress handler — any key skips BIOS
-      const skipDisposable = term.onData(() => {
+      // Keypress handler — Del or F2 opens Setup, any other key skips BIOS
+      const skipDisposable = term.onData((key) => {
+        // Del = \x1b[3~ or \x7f, F2 = \x1bOS, \x1b[12~, \x1bOQ, or \x1b[[B
+        if (key === '\x1b[3~' || key === '\x7f' || key === '\x1bOS' || key === '\x1b[12~' || key === '\x1bOQ' || key === '\x1b[[B') {
+          // Enter BIOS Setup
+          skipDisposable.dispose();
+          runBiosSetup(term, resolveBios);
+          return;
+        }
         biosAborted = true;
         skipDisposable.dispose();
         resolveBios();
@@ -148,7 +309,7 @@ function App() {
           term.write(
             goto(row + 1, 1) + DIM + FG_WHITE + '─'.repeat(COLS) + RESET +
             goto(row + 2, 2) + BG_BLUE + FG_WHITE + BOLD +
-            ' Press any key to continue, or wait...'.padEnd(COLS - 2, ' ') + RESET
+            ' Press any key to continue, or wait...  │  Del / F2 = BIOS Setup'.padEnd(COLS - 2, ' ') + RESET
           );
           setTimeout(() => {
             if (!biosAborted) { skipDisposable.dispose(); resolveBios(); }
@@ -160,7 +321,7 @@ function App() {
         const label  = chk.label.padEnd(22, '.');
         const status = chk.ok ? (BOLD + FG_GREEN + '[ OK ]' + RESET) : (DIM + FG_RED + '[SKIP]' + RESET);
         term.write(goto(row++, 2) + FG_WHITE + label + ' ' + status + ' ' + DIM + FG_WHITE + chk.value + RESET);
-        setTimeout(drawNext, 60);
+        setTimeout(drawNext, Math.floor(Math.random() * 2900) + 100);
       };
 
       setTimeout(drawNext, 200);
@@ -184,7 +345,25 @@ function App() {
       prompt(term);
     };
 
-    runBios().then(startShell);
+    const runLoading = () => new Promise((resolve) => {
+      term.write(hideCursor() + clearScreen());
+
+      // ASCII logo (same as BIOS)
+      let out = '';
+      LOGO.forEach((line, i) => {
+        out += goto(3 + i, 1) + BOLD + FG_CYAN + line + RESET + '\r\n';
+      });
+      out += '\r\n' + goto(11, 1) + BOLD + FG_YELLOW + 'Loading NE-DOS...'.padStart(Math.floor(COLS / 2) + 9, ' ') + RESET + '\r\n';
+      term.write(out);
+
+      // Random delay 3-5 seconds
+      const delay = Math.random() * 2000 + 3000;
+      setTimeout(() => {
+        resolve();
+      }, delay);
+    });
+
+    runBios().then(runLoading).then(startShell);
 
     // Helper: replace current command line on terminal
     const replaceCurrentInput = (newValue) => {

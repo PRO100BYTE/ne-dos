@@ -107,10 +107,9 @@ export default class EditCommand {
 
     const renderStatus = () => {
       const pos   = ` Ln:${state.curRow + 1}  Col:${state.curCol + 1}  Lines:${lines.length} `;
-      const msg   = state.inputMode
+      const msg   = state.inputMode === 'save-as' || state.inputMode === 'save-as-exit'
         ? ` Save as: ${state.inputBuffer}█`
         : (state.status || ' Ready');
-      const pad   = Math.max(0, COLS - pos.length - msg.length);
       return goto(ROWS, 1) + BG_BLUE + FG_WHITE +
              (' ' + msg).padEnd(COLS - pos.length, ' ') + BOLD + pos + RESET;
     };
@@ -177,9 +176,21 @@ export default class EditCommand {
     // ── Input handler ─────────────────────────────────────────────────────────
     let disposable;
     disposable = term.onData((key) => {
+      // Confirm-exit mode (Ctrl+Q with unsaved changes)
+      if (state.inputMode === 'confirm-exit') {
+        const k = key.toLowerCase();
+        if (k === 'y') {
+          doExit();
+        } else if (k === 'n' || key === '\x1b') {
+          state.inputMode = null;
+          state.status = '';
+          render();
+        }
+        return;
+      }
+
       // Save-as input mode
-      if (state.inputMode === 'save-as') {
-        if (key === '\r') {
+      if (state.inputMode === 'save-as') {        if (key === '\r') {
           const val = state.inputBuffer.trim();
           if (val) {
             const fpath = val.startsWith('/')
@@ -273,7 +284,14 @@ export default class EditCommand {
       }
 
       if (key === '\x11') { // Ctrl+Q — Quit without saving
-        doExit();
+        if (modified) {
+          state.inputMode   = 'confirm-exit';
+          state.inputBuffer = '';
+          state.status = 'Unsaved changes! Quit? [Y]es / [N]o';
+          render();
+        } else {
+          doExit();
+        }
         return;
       }
 

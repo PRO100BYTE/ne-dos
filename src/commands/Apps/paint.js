@@ -82,14 +82,17 @@ export default class PaintCommand {
       colors.push(Array(CANVAS_W).fill(0)); // index into PALETTE
     }
 
+    let modified = false;
+
     const state = {
       cursorRow: 0,
       cursorCol: 0,
       brushIdx: 0,
       colorIdx: 0,
       status: "Arrows:Move  Space:Draw  b:Brush  c:Color  s:Save  l:Load  n:New  Esc:Quit",
-      inputMode: null, // 'save' | 'load'
+      inputMode: null, // 'save' | 'load' | 'confirm-exit'
       inputBuffer: '',
+      inputPrompt: '',
       filename: params[1] || 'picture',
     };
 
@@ -187,13 +190,16 @@ export default class PaintCommand {
       return out;
     };
 
-    const render = (fullRedraw = false) => {
+    const render = (fullRedraw = false, prevRow = -1, prevCol = -1) => {
       let out = hideCursor();
       if (fullRedraw) {
         out += clearScreen() + renderToolbar() + renderCanvas();
       } else {
+        // Redraw the OLD cursor cell first to remove highlight, then the new one
+        if (prevRow >= 0 && prevCol >= 0 && (prevRow !== state.cursorRow || prevCol !== state.cursorCol)) {
+          out += renderCell(prevRow, prevCol);
+        }
         out += renderCell(state.cursorRow, state.cursorCol);
-        out += renderStatus();
       }
       out += renderStatus();
       term.write(out);
@@ -206,6 +212,7 @@ export default class PaintCommand {
         window.fs.writeFileSync(`/paint/${name}.txt`, lines.join('\n'));
         state.status = `Saved to /paint/${name}.txt`;
         state.filename = name;
+        modified = false;
       } catch (e) {
         state.status = `Save error: ${e.message}`;
       }
@@ -235,9 +242,32 @@ export default class PaintCommand {
     const disposable = term.onData((key) => {
       // Input mode
       if (state.inputMode) {
+        if (state.inputMode === 'confirm-exit') {
+          const k = key.toLowerCase();
+          if (k === 'y') {
+            // Save then exit
+            saveCanvas(state.filename);
+            if (term._setAppMode) term._setAppMode(false);
+            disposable.dispose();
+            term.write(showCursor() + clearScreen());
+            resolve();
+          } else if (k === 'n') {
+            // Exit without saving
+            if (term._setAppMode) term._setAppMode(false);
+            disposable.dispose();
+            term.write(showCursor() + clearScreen());
+            resolve();
+          } else if (k === 'c' || key === '\x1b') {
+            // Cancel
+            state.inputMode = null;
+            state.status = "Arrows:Move  Space:Draw  b:Brush  c:Color  s:Save  l:Load  n:New  Esc:Quit";
+            render(false);
+          }
+          return;
+        }
         if (key === '\r') {
           const val = state.inputBuffer.trim() || state.filename;
-          if (state.inputMode === 'save') saveCanvas(val);
+          if (state.inputMode === 'save') { saveCanvas(val); modified = false; }
           else loadCanvas(val);
           state.inputMode = null;
           state.inputBuffer = '';
@@ -261,7 +291,13 @@ export default class PaintCommand {
       let needFullRedraw = false;
 
       switch (key) {
-        case '\x1b': // Esc — quit
+        case '\x1b': // Esc — quit (with unsaved check)
+          if (modified) {
+            state.inputMode = 'confirm-exit';
+            state.status = 'Unsaved changes! Save? [Y]es / [N]o / [C]ancel';
+            render(false);
+            return;
+          }
           if (term._setAppMode) term._setAppMode(false);
           disposable.dispose();
           term.write(showCursor() + clearScreen());
@@ -278,11 +314,13 @@ export default class PaintCommand {
         case ' ':
           canvas[state.cursorRow][state.cursorCol] = BRUSHES[state.brushIdx];
           colors[state.cursorRow][state.cursorCol] = state.colorIdx;
+          modified = true;
           break;
 
         // Erase (Delete key)
         case '\x1b[3~':
           canvas[state.cursorRow][state.cursorCol] = ' ';
+          modified = true;
           break;
 
         // Cycle brush
@@ -320,6 +358,7 @@ export default class PaintCommand {
               canvas[r][c] = ' ';
               colors[r][c] = 0;
             }
+          modified = false;
           state.status = 'Canvas cleared';
           needFullRedraw = true;
           break;
@@ -330,11 +369,12 @@ export default class PaintCommand {
             canvas[state.cursorRow][state.cursorCol] = key;
             colors[state.cursorRow][state.cursorCol] = state.colorIdx;
             state.cursorCol = Math.min(CANVAS_W - 1, state.cursorCol + 1);
+            modified = true;
           }
           break;
       }
 
-      render(needFullRedraw);
+      render(needFullRedraw, prevRow, prevCol);
     });
     }); // end Promise
   }

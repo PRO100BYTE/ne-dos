@@ -1,6 +1,8 @@
 import path from "path-browserify";
 import { PrepareInternal, FormatDirectory } from "../Filesystem/StorageManager";
 import bytes from "bytes";
+import PlayerCommand from "./player";
+import EditCommand from "./edit";
 
 // ─── ANSI helpers ─────────────────────────────────────────────────────────────
 const CSI = '\x1b[';
@@ -253,7 +255,7 @@ export default class NcCommand {
     render();
 
     // ── Input handler ─────────────────────────────────────────────────────────
-    const disposable = term.onData((key) => {
+    const disposable = term.onData(async (key) => {
 
       // ── View / pager mode ──────────────────────────────────────────────────
       if (state.inputMode === 'view') {
@@ -366,11 +368,32 @@ export default class NcCommand {
         // Switch panel
         case '\t': state.active = 1 - state.active; break;
 
-        // Enter directory
+        // Enter directory or open file
         case '\r': {
           const e = ap().entries[ap().cursor];
-          if (e && e.isDir) enterDir(ap(), e.name);
-          break;
+          if (!e) break;
+          if (e.isDir) {
+            enterDir(ap(), e.name);
+            break;
+          }
+          // Open file in associated app
+          {
+            const AUDIO_EXT = ['.mp3', '.ogg', '.wav', '.flac', '.aac', '.m4a'];
+            const ext = path.extname(e.name).toLowerCase();
+            const filePath = path.join(ap().dir, e.name);
+            disposable.dispose();
+            if (term._setAppMode) term._setAppMode(false);
+            term.write(showCursor() + clearScreen());
+            if (AUDIO_EXT.includes(ext)) {
+              const cmd = new PlayerCommand();
+              await cmd.execute(term, ['player', filePath], ap().dir, setDirectory);
+            } else {
+              const cmd = new EditCommand();
+              await cmd.execute(term, ['edit', filePath], ap().dir, setDirectory);
+            }
+            resolve();
+            return;
+          }
         }
 
         // Backspace — parent dir
