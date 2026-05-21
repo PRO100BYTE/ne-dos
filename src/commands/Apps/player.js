@@ -43,6 +43,7 @@ export default class PlayerCommand {
     term.writeln("  r            Toggle repeat (one track)");
     term.writeln("  a            Repeat all");
     term.writeln("  v            Visualizer sensitivity (Low/Normal/High)");
+    term.writeln("  t            Visualizer turbo mode (extra punch)");
     term.writeln("  Esc          Quit player");
   }
 
@@ -128,6 +129,7 @@ export default class PlayerCommand {
       audio:         null,
       objectUrls:    {},
       vizSensitivity: 'Low',
+      vizTurbo:      false,
     };
     let isExiting = false;
     let audioEndedHandler = null;
@@ -213,7 +215,18 @@ export default class PlayerCommand {
           Normal: { sMul: 1.08, rise: 0.80, fall: 0.30, gainMin: 0.84, gainMax: 1.34, capRows: VIZ_ROWS * 0.96, gate: 0.008, gamma: 0.88, targetMean: 0.39 },
           High:   { sMul: 1.24, rise: 0.90, fall: 0.26, gainMin: 0.92, gainMax: 1.42, capRows: VIZ_ROWS * 0.99, gate: 0.006, gamma: 0.84, targetMean: 0.43 },
         };
-        const profile = profiles[state.vizSensitivity] || profiles.Low;
+        const baseProfile = profiles[state.vizSensitivity] || profiles.Low;
+        const profile = state.vizTurbo
+          ? {
+              ...baseProfile,
+              sMul: baseProfile.sMul * 1.18,
+              rise: Math.min(0.97, baseProfile.rise * 1.16),
+              fall: Math.min(0.56, baseProfile.fall * 1.35),
+              gainMax: baseProfile.gainMax * 1.10,
+              gate: Math.max(0.003, baseProfile.gate * 0.75),
+              targetMean: baseProfile.targetMean * 1.12,
+            }
+          : baseProfile;
 
         for (let i = 0; i < VIZ_COLS; i++) {
           // Frequency mapping that keeps energy distributed across the whole width.
@@ -264,7 +277,7 @@ export default class PlayerCommand {
       }
 
       term.write(hideCursor() + renderViz());
-      animFrame = setTimeout(animateBars, 33);
+      animFrame = setTimeout(animateBars, state.vizTurbo ? 24 : 33);
     };
 
     // Render the visualizer in-place (no clearScreen, just overwrite the rows)
@@ -469,6 +482,7 @@ export default class PlayerCommand {
       const shuffleOn = state.shuffle   ? BOLD + FG_CYAN  + '[SHUFFLE]' + RESET : DIM + FG_WHITE + '[shuffle]' + RESET;
       const repeatOn  = state.repeat    ? BOLD + FG_YELLOW + '[REPEAT 1]' + RESET : DIM + FG_WHITE + '[repeat1]' + RESET;
       const repAllOn  = state.repeatAll ? BOLD + FG_GREEN  + '[REPEAT ALL]' + RESET : DIM + FG_WHITE + '[repeat∞]' + RESET;
+      const turboOn   = state.vizTurbo  ? BOLD + FG_MAGENTA + '[TURBO]' + RESET : DIM + FG_WHITE + '[turbo]' + RESET;
 
       let out = hideCursor() + clearScreen();
 
@@ -505,7 +519,7 @@ export default class PlayerCommand {
       // ── Volume + flags ────────────────────────────────────────────────────
       out += goto(9, 2) + FG_WHITE + 'Vol: ' + FG_GREEN + volStr + RESET +
              ' ' + FG_YELLOW + `${volPct}%` + RESET +
-             '   ' + shuffleOn + '  ' + repeatOn + '  ' + repAllOn;
+              '   ' + shuffleOn + '  ' + repeatOn + '  ' + repAllOn + '  ' + turboOn;
 
       // ── Separator ────────────────────────────────────────────────────────
       out += goto(10, 1) + DIM + FG_WHITE + '─'.repeat(COLS) + RESET;
@@ -552,7 +566,7 @@ export default class PlayerCommand {
       // ── Controls bar ──────────────────────────────────────────────────────
       out += goto(CTRL_ROW, 1) + BG_BLUE + FG_WHITE;
       const statusText = state.status ||
-        'Space:Play/Pause  ↑↓:Track  ←→:Seek  Shift+←→:Seek30s  +-:Vol  s:Shuffle  r:Rep1  a:Rep∞  v:Sens  Esc:Quit';
+        'Space:Play/Pause  ↑↓:Track  ←→:Seek  Shift+←→:Seek30s  +-:Vol  s:Shuffle  r:Rep1  a:Rep∞  v:Sens  t:Turbo  Esc:Quit';
       out += (' ' + statusText).padEnd(COLS, ' ') + RESET;
 
       term.write(out);
@@ -633,6 +647,12 @@ export default class PlayerCommand {
           renderAll();
           break;
         }
+
+        case 't': case 'T':
+          state.vizTurbo = !state.vizTurbo;
+          setStatus(`Visualizer turbo: ${state.vizTurbo ? 'ON' : 'OFF'}`);
+          renderAll();
+          break;
 
         default:
           // Number keys 0-9: jump to track
