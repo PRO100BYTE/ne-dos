@@ -55,7 +55,7 @@ export default class PlayerCommand {
 
     // ── Layout constants ───────────────────────────────────────────────────────
     const VIZ_ROWS      = 6;                        // rows for the visualizer
-    const VIZ_COLS      = Math.max(16, COLS - 4);   // one column per frequency band
+    const VIZ_COLS      = Math.max(16, COLS);       // full-width frequency bands
     const HDR_ROWS      = 3;                        // title header rows 1-3
     // Row 4: separator
     // Row 5: now playing
@@ -270,7 +270,7 @@ export default class PlayerCommand {
       let out = '';
       const BLOCKS = ' ▁▂▃▄▅▆▇█';
       for (let vr = 0; vr < VIZ_ROWS; vr++) {
-        out += goto(VIZ_START_ROW + vr, 3);
+        out += goto(VIZ_START_ROW + vr, 1);
         const threshold = VIZ_ROWS - vr; // top row = VIZ_ROWS, bottom = 1
         for (let i = 0; i < VIZ_COLS; i++) {
           const barH = beatBars[i] || 0;          // 0..VIZ_ROWS
@@ -510,7 +510,7 @@ export default class PlayerCommand {
 
       // ── Visualizer placeholder ────────────────────────────────────────────
       for (let vr = 0; vr < VIZ_ROWS; vr++) {
-        out += goto(VIZ_START_ROW + vr, 3) + DIM + FG_GREEN + '░'.repeat(VIZ_COLS) + RESET;
+        out += goto(VIZ_START_ROW + vr, 1) + DIM + FG_GREEN + '░'.repeat(VIZ_COLS) + RESET;
       }
 
       // ── Separator ────────────────────────────────────────────────────────
