@@ -30,6 +30,7 @@ import UploadCommand from "./commands/Filesystem/upload";
 import RenameCommand from "./commands/Filesystem/rename";
 import CopyCommand from "./commands/Filesystem/copy";
 import MoveCommand from "./commands/Filesystem/move";
+import TreeCommand from "./commands/Filesystem/tree";
 import MatrixCommand from "./commands/General/matrix";
 import RebootCommand from "./commands/System/reboot";
 import PasswordCommand from "./commands/Utility/password";
@@ -65,6 +66,7 @@ export const registerAllCommands = () => {
   registeredCommands['rename'] = new RenameCommand();
   registeredCommands['copy'] = new CopyCommand();
   registeredCommands['move'] = new MoveCommand();
+  registeredCommands['tree'] = new TreeCommand();
 
   // General commands
   registeredCommands['credits'] = new CreditsCommand();
