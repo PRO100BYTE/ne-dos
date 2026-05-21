@@ -148,6 +148,7 @@ export default class PlayerCommand {
 
     // ── Visualizer bars ───────────────────────────────────────────────────────
     let beatBars  = Array(VIZ_COLS).fill(0);
+    let barEnvelope = Array(VIZ_COLS).fill(0);
     let animFrame = null;
     let audioCtx = null;
     let analyser = null;
@@ -198,6 +199,7 @@ export default class PlayerCommand {
       if (isExiting) return;
       if (!state.playing) {
         beatBars = Array(VIZ_COLS).fill(0);
+        barEnvelope = Array(VIZ_COLS).fill(0);
         term.write(hideCursor() + renderViz());
         return;
       }
@@ -207,9 +209,9 @@ export default class PlayerCommand {
         const bins = freqData.length;
         let frameMean = 0;
         const profiles = {
-          Low:    { sMul: 0.74, rise: 0.52, fall: 0.18, gainMin: 0.62, gainMax: 1.00, capRows: VIZ_ROWS * 0.72, gate: 0.02, gamma: 1.06, targetMean: 0.24 },
-          Normal: { sMul: 0.96, rise: 0.66, fall: 0.24, gainMin: 0.74, gainMax: 1.16, capRows: VIZ_ROWS * 0.88, gate: 0.015, gamma: 0.98, targetMean: 0.31 },
-          High:   { sMul: 1.14, rise: 0.82, fall: 0.32, gainMin: 0.86, gainMax: 1.28, capRows: VIZ_ROWS * 0.98, gate: 0.01, gamma: 0.90, targetMean: 0.38 },
+          Low:    { sMul: 0.74, rise: 0.50, fall: 0.46, gainMin: 0.62, gainMax: 1.00, capRows: VIZ_ROWS * 0.72, gate: 0.02, gamma: 1.06, targetMean: 0.24 },
+          Normal: { sMul: 0.96, rise: 0.64, fall: 0.38, gainMin: 0.74, gainMax: 1.16, capRows: VIZ_ROWS * 0.88, gate: 0.015, gamma: 0.98, targetMean: 0.31 },
+          High:   { sMul: 1.14, rise: 0.80, fall: 0.34, gainMin: 0.86, gainMax: 1.28, capRows: VIZ_ROWS * 0.98, gate: 0.01, gamma: 0.90, targetMean: 0.38 },
         };
         const profile = profiles[state.vizSensitivity] || profiles.Low;
 
@@ -236,10 +238,10 @@ export default class PlayerCommand {
           frameMean += target;
 
           // Fast rise, slower fall for a lively but readable spectrum.
-          if (target > beatBars[i]) {
-            beatBars[i] += (target - beatBars[i]) * profile.rise;
+          if (target > barEnvelope[i]) {
+            barEnvelope[i] += (target - barEnvelope[i]) * profile.rise;
           } else {
-            beatBars[i] += (target - beatBars[i]) * profile.fall;
+            barEnvelope[i] += (target - barEnvelope[i]) * profile.fall;
           }
         }
 
@@ -249,13 +251,14 @@ export default class PlayerCommand {
         const meanGain = profile.targetMean / Math.max(vizPeak, 0.05);
         const gain = Math.max(profile.gainMin, Math.min(profile.gainMax, meanGain));
         for (let i = 0; i < VIZ_COLS; i++) {
-          const scaled = Math.max(0, Math.min(1, beatBars[i] * gain));
+          const scaled = Math.max(0, Math.min(1, barEnvelope[i] * gain));
           beatBars[i] = Math.min(profile.capRows, scaled * VIZ_ROWS);
         }
 
         prevFreqData.set(freqData);
       } else {
-        beatBars = beatBars.map(v => Math.max(0, v * 0.85));
+        barEnvelope = barEnvelope.map(v => Math.max(0, v * 0.65));
+        beatBars = beatBars.map(v => Math.max(0, v * 0.6));
       }
 
       term.write(hideCursor() + renderViz());
