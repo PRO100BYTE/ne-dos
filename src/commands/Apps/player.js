@@ -25,8 +25,8 @@ const hideCursor  = ()     => `${CSI}?25l`;
 const showCursor  = ()     => `${CSI}?25h`;
 
 const AUDIO_EXT   = ['.mp3', '.ogg', '.wav', '.flac', '.aac', '.m4a'];
-// Use only the most informative part of FFT to avoid a "dead" right edge.
-const SPECTRUM_BIN_CUTOFF = 0.80;
+const SPECTRUM_BIN_CUTOFF_MIN = 0.52;
+const SPECTRUM_BIN_CUTOFF_MAX = 0.98;
 
 // ─── Player Command ───────────────────────────────────────────────────────────
 export default class PlayerCommand {
@@ -168,6 +168,7 @@ export default class PlayerCommand {
     let oscAmpSmooth = 0.42;
     let fireCols = Array(VIZ_COLS).fill(0).map(() => Array(VIZ_ROWS).fill(0));
     let rainDrops = Array(VIZ_COLS).fill(0).map(() => ({ y: Math.random() * VIZ_ROWS, speed: 0.6 + Math.random() * 1.4, head: 0 }));
+    let spectrumUpperNorm = 0.82;
     let vizPeak = 0.08;
 
     const ensureVizWidth = () => {
@@ -200,6 +201,7 @@ export default class PlayerCommand {
       oscAmpSmooth = 0.42;
       fireCols = Array(VIZ_COLS).fill(0).map(() => Array(VIZ_ROWS).fill(0));
       rainDrops = Array(VIZ_COLS).fill(0).map(() => ({ y: Math.random() * VIZ_ROWS, speed: 0.6 + Math.random() * 1.4, head: 0 }));
+      spectrumUpperNorm = 0.82;
       vizPeak = 0.08;
       if (audioCtx) {
         const ctx = audioCtx;
@@ -333,7 +335,35 @@ export default class PlayerCommand {
         analyser.getByteFrequencyData(freqData);
          if (oscData) analyser.getByteTimeDomainData(oscData);
         const bins = freqData.length;
-        const activeBins = Math.max(16, Math.min(bins, Math.floor(bins * SPECTRUM_BIN_CUTOFF)));
+
+        // Adaptive spectrum range: find where most energy ends, then smoothly track it.
+        let totalEnergy = 0;
+        const binEnergy = new Float32Array(bins);
+        for (let i = 0; i < bins; i++) {
+          // Emphasize meaningful peaks but keep tails observable.
+          const e = Math.pow(freqData[i] / 255, 1.25);
+          binEnergy[i] = e;
+          totalEnergy += e;
+        }
+
+        const targetEnergy = 0.992;
+        let cumulative = 0;
+        let desiredUpperBin = Math.floor(bins * 0.8);
+        if (totalEnergy > 0.0001) {
+          for (let i = 0; i < bins; i++) {
+            cumulative += binEnergy[i];
+            if ((cumulative / totalEnergy) >= targetEnergy) {
+              desiredUpperBin = i;
+              break;
+            }
+          }
+        }
+
+        let desiredUpperNorm = desiredUpperBin / Math.max(1, bins - 1);
+        desiredUpperNorm = Math.max(SPECTRUM_BIN_CUTOFF_MIN, Math.min(SPECTRUM_BIN_CUTOFF_MAX, desiredUpperNorm));
+        const cutoffLerp = state.vizTurbo ? 0.24 : 0.16;
+        spectrumUpperNorm += (desiredUpperNorm - spectrumUpperNorm) * cutoffLerp;
+        const activeBins = Math.max(16, Math.min(bins, Math.floor(bins * spectrumUpperNorm)));
         let frameMean = 0;
         const profiles = {
           Low:    { sMul: 1.00, rise: 0.72, fall: 0.52, gainMin: 0.90, gainMax: 1.30, capRows: VIZ_ROWS * 0.94, gate: 0.010, gamma: 0.90, targetMean: 0.36 },
