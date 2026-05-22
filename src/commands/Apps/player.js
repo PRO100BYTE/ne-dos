@@ -25,6 +25,8 @@ const hideCursor  = ()     => `${CSI}?25l`;
 const showCursor  = ()     => `${CSI}?25h`;
 
 const AUDIO_EXT   = ['.mp3', '.ogg', '.wav', '.flac', '.aac', '.m4a'];
+// Use only the most informative part of FFT to avoid a "dead" right edge.
+const SPECTRUM_BIN_CUTOFF = 0.80;
 
 // ─── Player Command ───────────────────────────────────────────────────────────
 export default class PlayerCommand {
@@ -331,6 +333,7 @@ export default class PlayerCommand {
         analyser.getByteFrequencyData(freqData);
          if (oscData) analyser.getByteTimeDomainData(oscData);
         const bins = freqData.length;
+        const activeBins = Math.max(16, Math.min(bins, Math.floor(bins * SPECTRUM_BIN_CUTOFF)));
         let frameMean = 0;
         const profiles = {
           Low:    { sMul: 1.00, rise: 0.72, fall: 0.52, gainMin: 0.90, gainMax: 1.30, capRows: VIZ_ROWS * 0.94, gate: 0.010, gamma: 0.90, targetMean: 0.36 },
@@ -352,8 +355,8 @@ export default class PlayerCommand {
 
         for (let i = 0; i < VIZ_COLS; i++) {
           // Linear spectrum mapping: lows (left), mids (center), highs (right).
-          const start = Math.max(0, Math.min(bins - 1, Math.floor((i / VIZ_COLS) * bins)));
-          const end = Math.max(start + 1, Math.min(bins, Math.floor(((i + 1) / VIZ_COLS) * bins)));
+          const start = Math.max(0, Math.min(activeBins - 1, Math.floor((i / VIZ_COLS) * activeBins)));
+          const end = Math.max(start + 1, Math.min(activeBins, Math.floor(((i + 1) / VIZ_COLS) * activeBins)));
           let sum = 0;
           let flux = 0;
           for (let j = start; j < end; j++) sum += freqData[j];
