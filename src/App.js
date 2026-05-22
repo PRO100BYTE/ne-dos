@@ -112,6 +112,7 @@ function App() {
 
     let currentDirectory = '/';
     let command = '';
+    let commandCursor = 0;
     const setCommand = v => command = v;
     const setCurrentDirectory = (dir) => {
       currentDirectory = dir;
@@ -139,6 +140,7 @@ function App() {
 
     const prompt = (term) => {
       setCommand("");
+      commandCursor = 0;
       historyIndex = -1;
       savedInput = '';
       term.write(`\r\n${buildPrompt()}`);
@@ -771,11 +773,22 @@ function App() {
     window.addEventListener('resize', onWindowResize);
 
     // Helper: replace current command line on terminal
-    const replaceCurrentInput = (newValue) => {
-      // Erase current input: move cursor back and clear to end of line
+    const redrawInputLine = () => {
+      const promptText = buildPrompt();
+      // Erase current line and draw prompt + command
       term.write('\r\x1b[K');
-      term.write(`${buildPrompt()}${newValue}`);
+      term.write(`${promptText}${command}`);
+      // Place cursor back to current edit position
+      const tail = command.length - commandCursor;
+      if (tail > 0) {
+        term.write(`\x1b[${tail}D`);
+      }
+    };
+
+    const replaceCurrentInput = (newValue) => {
       setCommand(newValue);
+      commandCursor = newValue.length;
+      redrawInputLine();
     };
 
     term.onData(e => {
@@ -789,9 +802,11 @@ function App() {
           runCommand();
           break;
         case '\u007F': // Backspace
-          if (command.length > 0) {
-            term.write('\b \b');
-            setCommand(command.substring(0, command.length - 1));
+          if (commandCursor > 0) {
+            const next = command.slice(0, commandCursor - 1) + command.slice(commandCursor);
+            setCommand(next);
+            commandCursor--;
+            redrawInputLine();
           }
           break;
         case '\x1b[A': // Arrow Up — history backward
@@ -814,15 +829,24 @@ function App() {
             replaceCurrentInput(savedInput);
           }
           break;
-        case '\x1b[C': // Arrow Right — ignore
-        case '\x1b[D': // Arrow Left — ignore
+        case '\x1b[D': // Arrow Left
+          if (commandCursor > 0) {
+            commandCursor--;
+            term.write('\x1b[D');
+          }
+          break;
+        case '\x1b[C': // Arrow Right
+          if (commandCursor < command.length) {
+            commandCursor++;
+            term.write('\x1b[C');
+          }
           break;
         default:
           if ((e >= String.fromCharCode(0x20) && e <= String.fromCharCode(0x7E)) || e >= '\u00a0') {
-            let cmd = command;
-            cmd += e;
-            setCommand(cmd);
-            term.write(e);
+            const next = command.slice(0, commandCursor) + e + command.slice(commandCursor);
+            setCommand(next);
+            commandCursor++;
+            redrawInputLine();
           }
       }
     });
