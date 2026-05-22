@@ -1,5 +1,7 @@
 const CONFIG_DIR = '/.config';
 const CONFIG_FILE = '/.config/sculk.session.json';
+const DEFAULT_REGISTRY_NAME = 'default';
+const DEFAULT_STORE_API = 'https://store.ne-dos.ru';
 
 function ensureConfigDir() {
   if (!window.fs.existsSync(CONFIG_DIR)) window.fs.mkdirSync(CONFIG_DIR);
@@ -10,7 +12,11 @@ function loadConfig() {
     return JSON.parse(window.fs.readFileSync(CONFIG_FILE, 'utf8'));
   } catch {
     return {
-      storeApi: 'http://localhost:8787',
+      storeApi: DEFAULT_STORE_API,
+      registries: {
+        [DEFAULT_REGISTRY_NAME]: DEFAULT_STORE_API,
+      },
+      activeRegistry: DEFAULT_REGISTRY_NAME,
       session: '',
       account: null,
     };
@@ -23,7 +29,13 @@ function saveConfig(config) {
 }
 
 function apiUrl(base, path) {
-  return `${String(base || 'http://localhost:8787').replace(/\/$/, '')}${path}`;
+  return `${String(base || DEFAULT_STORE_API).replace(/\/$/, '')}${path}`;
+}
+
+function resolveStoreApi(config) {
+  const registries = (config && config.registries) || {};
+  const activeRegistry = (config && config.activeRegistry) || DEFAULT_REGISTRY_NAME;
+  return registries[activeRegistry] || config.storeApi || DEFAULT_STORE_API;
 }
 
 async function fetchJson(url, options = {}) {
@@ -58,6 +70,7 @@ export default class SculkCommand {
   async execute(term, params) {
     const action = String(params[1] || '').toLowerCase();
     const config = loadConfig();
+    const storeApi = resolveStoreApi(config);
 
     if (!action) {
       this.help(term);
@@ -70,13 +83,13 @@ export default class SculkCommand {
         config.storeApi = value;
         saveConfig(config);
       }
-      term.writeln(`Store API: ${config.storeApi}`);
+      term.writeln(`Store API: ${resolveStoreApi(config)}`);
       return;
     }
 
     if (action === 'authorize') {
       try {
-        const data = await fetchJson(apiUrl(config.storeApi, '/api/auth/sculk/config'));
+        const data = await fetchJson(apiUrl(storeApi, '/api/auth/sculk/config'));
         const target = data.authorizeUrl;
         if (target) {
           window.open(target, '_blank', 'noopener,noreferrer');
@@ -92,8 +105,8 @@ export default class SculkCommand {
 
     if (action === 'callback') {
       try {
-        const data = await fetchJson(apiUrl(config.storeApi, '/api/auth/sculk/config'));
-        term.writeln(`Callback URL: ${data.callbackUrl || 'http://localhost:8787/api/auth/sculk/callback'}`);
+        const data = await fetchJson(apiUrl(storeApi, '/api/auth/sculk/config'));
+        term.writeln(`Callback URL: ${data.callbackUrl || `${storeApi.replace(/\/$/, '')}/api/auth/sculk/callback`}`);
       } catch (error) {
         term.writeln(`Error: ${error.message}`);
       }
@@ -111,7 +124,7 @@ export default class SculkCommand {
 
       try {
         const payload = { mode, [mode === 'token' ? 'token' : 'code']: value };
-        const data = await fetchJson(apiUrl(config.storeApi, '/api/auth/sculk/login'), {
+        const data = await fetchJson(apiUrl(storeApi, '/api/auth/sculk/login'), {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(payload),
@@ -138,7 +151,7 @@ export default class SculkCommand {
         return;
       }
       try {
-        const data = await fetchJson(apiUrl(config.storeApi, '/api/auth/session'), {
+        const data = await fetchJson(apiUrl(storeApi, '/api/auth/session'), {
           headers: { 'x-nedos-session': config.session },
         });
         config.account = data.account || null;

@@ -72,6 +72,7 @@ import DosKeyCommand from "./commands/System/doskey";
 import ModeCommand from "./commands/System/mode";
 import PassportCommand from "./commands/Utility/passport";
 import StoreCommand from "./commands/Utility/store";
+import RegistryCommand from "./commands/Utility/registry";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -143,6 +144,7 @@ export const registerAllCommands = () => {
   registeredCommands['notes'] = new NotesCommand();
   registeredCommands['passport'] = new PassportCommand();
   registeredCommands['store'] = new StoreCommand();
+  registeredCommands['registry'] = new RegistryCommand();
 
   // ECodeAPI
   registeredCommands['ecode'] = new ECodeAPICommand();

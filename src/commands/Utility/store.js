@@ -1,5 +1,7 @@
 const CONFIG_DIR = '/.config';
 const CONFIG_FILE = '/.config/sculk.session.json';
+const DEFAULT_REGISTRY_NAME = 'default';
+const DEFAULT_STORE_API = 'https://store.ne-dos.ru';
 
 function ensureConfigDir() {
   if (!window.fs.existsSync(CONFIG_DIR)) window.fs.mkdirSync(CONFIG_DIR);
@@ -14,7 +16,11 @@ function loadConfig() {
     return JSON.parse(window.fs.readFileSync(CONFIG_FILE, 'utf8'));
   } catch {
     return {
-      storeApi: 'http://localhost:8787',
+      storeApi: DEFAULT_STORE_API,
+      registries: {
+        [DEFAULT_REGISTRY_NAME]: DEFAULT_STORE_API,
+      },
+      activeRegistry: DEFAULT_REGISTRY_NAME,
       session: '',
       account: null,
     };
@@ -27,7 +33,13 @@ function saveConfig(config) {
 }
 
 function apiUrl(base, path) {
-  return `${String(base || 'http://localhost:8787').replace(/\/$/, '')}${path}`;
+  return `${String(base || DEFAULT_STORE_API).replace(/\/$/, '')}${path}`;
+}
+
+function resolveStoreApi(config) {
+  const registries = (config && config.registries) || {};
+  const activeRegistry = (config && config.activeRegistry) || DEFAULT_REGISTRY_NAME;
+  return registries[activeRegistry] || config.storeApi || DEFAULT_STORE_API;
 }
 
 function absoluteSource(base, sourceUrl) {
@@ -77,11 +89,14 @@ export default class StoreCommand {
     term.writeln('  store search [query]');
     term.writeln('  store info <slug>');
     term.writeln('  store install <slug>');
+    term.writeln('');
+    term.writeln('Tip: use "registry" command to manage repositories');
   }
 
   async execute(term, params) {
     const action = String(params[1] || '').toLowerCase();
     const config = loadConfig();
+    const storeApi = resolveStoreApi(config);
 
     if (!action) {
       this.help(term);
@@ -94,14 +109,14 @@ export default class StoreCommand {
         config.storeApi = value;
         saveConfig(config);
       }
-      term.writeln(`Store API: ${config.storeApi}`);
+      term.writeln(`Store API: ${resolveStoreApi(config)}`);
       return;
     }
 
     if (action === 'search') {
       const query = params.slice(2).join(' ').trim();
       try {
-        const url = apiUrl(config.storeApi, `/api/commands${query ? `?query=${encodeURIComponent(query)}` : ''}`);
+        const url = apiUrl(storeApi, `/api/commands${query ? `?query=${encodeURIComponent(query)}` : ''}`);
         const data = await fetchJson(url);
         const items = (data.items || []).slice(0, 12);
         if (!items.length) {
@@ -124,7 +139,7 @@ export default class StoreCommand {
         return;
       }
       try {
-        const data = await fetchJson(apiUrl(config.storeApi, `/api/commands/${encodeURIComponent(slug)}`));
+        const data = await fetchJson(apiUrl(storeApi, `/api/commands/${encodeURIComponent(slug)}`));
         term.writeln(`Name: ${data.name}`);
         term.writeln(`Version: ${data.version}`);
         term.writeln(`Origin: ${data.origin}`);
@@ -144,8 +159,8 @@ export default class StoreCommand {
         return;
       }
       try {
-        const hint = await fetchJson(apiUrl(config.storeApi, `/api/commands/${encodeURIComponent(slug)}/install`));
-        const sourceRes = await fetch(absoluteSource(config.storeApi, hint.sourceUrl));
+        const hint = await fetchJson(apiUrl(storeApi, `/api/commands/${encodeURIComponent(slug)}/install`));
+        const sourceRes = await fetch(absoluteSource(storeApi, hint.sourceUrl));
         if (!sourceRes.ok) throw new Error(`Failed to download package: HTTP ${sourceRes.status}`);
         const source = await sourceRes.text();
 
@@ -154,7 +169,7 @@ export default class StoreCommand {
         window.fs.writeFileSync(target, source);
 
         const registered = await registerFromSource(slug, source);
-        await fetch(apiUrl(config.storeApi, `/api/commands/${encodeURIComponent(slug)}/install-track`), { method: 'POST' }).catch(() => {});
+        await fetch(apiUrl(storeApi, `/api/commands/${encodeURIComponent(slug)}/install-track`), { method: 'POST' }).catch(() => {});
 
         term.writeln(`Saved: ${target}`);
         if (registered) {
