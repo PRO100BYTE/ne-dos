@@ -13,6 +13,7 @@ const FG_YELLOW  = CSI + '33m';
 const FG_GREEN   = CSI + '32m';
 const FG_RED     = CSI + '31m';
 const FG_BLACK   = CSI + '30m';
+const FG_BLUE    = CSI + '34m';
 const FG_MAGENTA = CSI + '35m';
 const BG_BLACK   = CSI + '40m';
 const BG_BLUE    = CSI + '44m';
@@ -44,7 +45,7 @@ export default class PlayerCommand {
     term.writeln("  a            Repeat all");
     term.writeln("  v            Visualizer sensitivity (Low/Normal/High)");
     term.writeln("  t            Visualizer turbo mode (extra punch)");
-    term.writeln("  w            Toggle visualizer mode (Bars / Oscilloscope / Fire)");
+    term.writeln("  w            Toggle visualizer mode (Bars / Oscilloscope / Fire / Mirror / Pulse)");
     term.writeln("  Esc          Quit player");
   }
 
@@ -131,7 +132,7 @@ export default class PlayerCommand {
       objectUrls:    {},
       vizSensitivity: 'Low',
       vizTurbo:      false,
-      vizMode:       'bars',  // 'bars' | 'oscilloscope' | 'fire'
+      vizMode:       'bars',  // 'bars' | 'oscilloscope' | 'fire' | 'mirror' | 'pulse'
     };
     let isExiting = false;
     let audioEndedHandler = null;
@@ -225,20 +226,34 @@ export default class PlayerCommand {
       if (animFrame !== null) { clearTimeout(animFrame); animFrame = null; }
     };
 
+    const getVizFrame = () => {
+      const compactModes = new Set(['oscilloscope', 'fire', 'mirror', 'pulse']);
+      const drawCols = compactModes.has(state.vizMode)
+        ? Math.max(32, Math.min(VIZ_COLS, 120))
+        : VIZ_COLS;
+      const left = 1 + Math.max(0, Math.floor((VIZ_COLS - drawCols) / 2));
+      return { left, drawCols };
+    };
+
+    const mapLocalToGlobalCol = (localCol, localCols) => {
+      if (localCols <= 1) return 0;
+      return Math.max(0, Math.min(VIZ_COLS - 1, Math.round((localCol / (localCols - 1)) * (VIZ_COLS - 1))));
+    };
+
     const updateFire = () => {
       ensureVizWidth();
       const cooling = state.vizTurbo ? 0.05 : 0.07;
-      const diffusion = state.vizTurbo ? 0.78 : 0.70;
+      const diffusion = state.vizTurbo ? 0.82 : 0.74;
       const sparkBase = state.vizTurbo ? 0.42 : 0.32;
 
-      // Cool and move heat upward.
+      // Cool and move heat mostly straight upward (minimal side drift).
       for (let x = 0; x < VIZ_COLS; x++) {
         for (let y = 0; y < VIZ_ROWS - 1; y++) {
-          const belowL = fireCols[Math.max(0, x - 1)][Math.min(VIZ_ROWS - 1, y + 1)];
           const below = fireCols[x][Math.min(VIZ_ROWS - 1, y + 1)];
-          const belowR = fireCols[Math.min(VIZ_COLS - 1, x + 1)][Math.min(VIZ_ROWS - 1, y + 1)];
-          const mixed = (belowL + below * 2 + belowR) / 4;
-          fireCols[x][y] = Math.max(0, mixed * diffusion - cooling);
+          const below2 = fireCols[x][Math.min(VIZ_ROWS - 1, y + 2)] || below;
+          const carry = (below * 0.78 + below2 * 0.22) * diffusion;
+          const noise = (Math.random() - 0.5) * 0.015;
+          fireCols[x][y] = Math.max(0, carry - cooling + noise);
         }
       }
 
@@ -251,6 +266,26 @@ export default class PlayerCommand {
       }
     };
 
+    const decayFire = () => {
+      ensureVizWidth();
+      const decay = state.vizTurbo ? 0.91 : 0.88;
+      const cool = state.vizTurbo ? 0.02 : 0.028;
+      for (let x = 0; x < VIZ_COLS; x++) {
+        for (let y = 0; y < VIZ_ROWS; y++) {
+          fireCols[x][y] = Math.max(0, fireCols[x][y] * decay - cool);
+        }
+      }
+    };
+
+    const fireVisible = () => {
+      for (let x = 0; x < VIZ_COLS; x++) {
+        for (let y = 0; y < VIZ_ROWS; y++) {
+          if (fireCols[x][y] > 0.03) return true;
+        }
+      }
+      return false;
+    };
+
     const animateBars = () => {
       if (isExiting) return;
       ensureVizWidth();
@@ -261,10 +296,14 @@ export default class PlayerCommand {
           const envRows = Math.min(VIZ_ROWS, barEnvelope[i] * VIZ_ROWS);
           return Math.max(envRows, v * 0.70);
         });
+        decayFire();
         term.write(hideCursor() + renderViz());
 
         // Stop timer only after bars have visually faded out.
-        const stillVisible = barEnvelope.some(v => v > 0.01) || beatBars.some(v => v > 0.05);
+        const stillVisible =
+          barEnvelope.some(v => v > 0.01) ||
+          beatBars.some(v => v > 0.05) ||
+          fireVisible();
         if (stillVisible) {
           animFrame = setTimeout(animateBars, state.vizTurbo ? 16 : 20);
         } else {
@@ -354,15 +393,16 @@ export default class PlayerCommand {
     const renderOscilloscope = () => {
       ensureVizWidth();
       let out = '';
+      const frame = getVizFrame();
       if (!oscData || !state.playing) {
         // Draw empty oscilloscope baseline
         const centerRow = VIZ_START_ROW + Math.floor(VIZ_ROWS / 2);
         for (let row = VIZ_START_ROW; row < VIZ_START_ROW + VIZ_ROWS; row++) {
-          out += goto(row, 1);
+          out += goto(row, frame.left);
           if (row === centerRow) {
-            out += DIM + FG_CYAN + '┄'.repeat(VIZ_COLS) + RESET;
+            out += DIM + FG_CYAN + '┄'.repeat(frame.drawCols) + RESET;
           } else {
-            out += ' '.repeat(VIZ_COLS);
+            out += ' '.repeat(frame.drawCols);
           }
         }
         return out;
@@ -383,22 +423,22 @@ export default class PlayerCommand {
           break;
         }
       }
-      const visibleSamples = Math.max(VIZ_COLS * 2, Math.floor(oscData.length * 0.56));
-      const sampleStep = visibleSamples / Math.max(1, VIZ_COLS - 1);
+      const visibleSamples = Math.max(frame.drawCols * 2, Math.floor(oscData.length * 0.56));
+      const sampleStep = visibleSamples / Math.max(1, frame.drawCols - 1);
 
       // Clear visualizer area + draw center baseline
       for (let row = 0; row < VIZ_ROWS; row++) {
-        out += goto(VIZ_START_ROW + row, 1);
+        out += goto(VIZ_START_ROW + row, frame.left);
         if (row === centerRowOffset) {
-          out += DIM + FG_CYAN + '┄'.repeat(VIZ_COLS) + RESET;
+          out += DIM + FG_CYAN + '┄'.repeat(frame.drawCols) + RESET;
         } else {
-          out += ' '.repeat(VIZ_COLS);
+          out += ' '.repeat(frame.drawCols);
         }
       }
 
       // Map osc samples into terminal rows with temporal + spatial smoothing
       const timeSmooth = state.vizTurbo ? 0.44 : 0.30;
-      const waveNorm = new Array(VIZ_COLS);
+      const waveNorm = new Array(frame.drawCols);
 
       // Dynamic vertical normalization by peak amplitude for realistic response.
       let framePeak = 0.05;
@@ -409,7 +449,7 @@ export default class PlayerCommand {
       oscAmpSmooth = oscAmpSmooth + (framePeak - oscAmpSmooth) * (state.vizTurbo ? 0.18 : 0.12);
       const ampGain = 0.68 / Math.max(0.08, oscAmpSmooth);
 
-      for (let col = 0; col < VIZ_COLS; col++) {
+      for (let col = 0; col < frame.drawCols; col++) {
         const samplePos = zeroStart + col * sampleStep;
         const i0 = Math.max(0, Math.min(oscData.length - 1, Math.floor(samplePos)));
         const i1 = Math.max(0, Math.min(oscData.length - 1, i0 + 1));
@@ -418,32 +458,34 @@ export default class PlayerCommand {
         const v1 = (oscData[i1] - 128) / maxAmp;
         const interp = v0 + (v1 - v0) * frac;
         const rawNorm = Math.max(-1, Math.min(1, interp * ampGain));
-        oscNormSmoothed[col] = oscNormSmoothed[col] + (rawNorm - oscNormSmoothed[col]) * timeSmooth;
+        const dstCol = mapLocalToGlobalCol(col, frame.drawCols);
+        oscNormSmoothed[dstCol] = oscNormSmoothed[dstCol] + (rawNorm - oscNormSmoothed[dstCol]) * timeSmooth;
+        waveNorm[col] = oscNormSmoothed[dstCol];
       }
 
-      for (let col = 0; col < VIZ_COLS; col++) {
-        const left = oscNormSmoothed[Math.max(0, col - 1)];
-        const curr = oscNormSmoothed[col];
-        const right = oscNormSmoothed[Math.min(VIZ_COLS - 1, col + 1)];
+      for (let col = 0; col < frame.drawCols; col++) {
+        const left = waveNorm[Math.max(0, col - 1)] || waveNorm[col] || 0;
+        const curr = waveNorm[col] || 0;
+        const right = waveNorm[Math.min(frame.drawCols - 1, col + 1)] || waveNorm[col] || 0;
         waveNorm[col] = (left + curr * 2 + right) / 4;
       }
 
       // Convert smoothed waveform to rows
-      const waveRows = new Array(VIZ_COLS);
-      for (let col = 0; col < VIZ_COLS; col++) {
+      const waveRows = new Array(frame.drawCols);
+      for (let col = 0; col < frame.drawCols; col++) {
         const normalized = waveNorm[col];
         const rowOffset = centerRowOffset - Math.round(normalized * (VIZ_ROWS / 2 - 1));
         waveRows[col] = Math.max(0, Math.min(VIZ_ROWS - 1, rowOffset));
       }
 
       const drawLineChar = (rowOffset, col, ch) => {
-        out += goto(VIZ_START_ROW + rowOffset, col + 1);
+        out += goto(VIZ_START_ROW + rowOffset, frame.left + col);
         out += BOLD + FG_GREEN + ch + RESET;
       };
 
       // Draw connected waveform instead of separate dots
       drawLineChar(waveRows[0], 0, '─');
-      for (let col = 1; col < VIZ_COLS; col++) {
+      for (let col = 1; col < frame.drawCols; col++) {
         const prev = waveRows[col - 1];
         const curr = waveRows[col];
         if (curr === prev) {
@@ -462,9 +504,65 @@ export default class PlayerCommand {
       return out;
     };
 
+    const renderMirror = () => {
+      ensureVizWidth();
+      const frame = getVizFrame();
+      let out = '';
+      const mid = Math.floor(VIZ_ROWS / 2);
+
+      for (let row = 0; row < VIZ_ROWS; row++) {
+        out += goto(VIZ_START_ROW + row, frame.left) + ' '.repeat(frame.drawCols);
+      }
+
+      for (let col = 0; col < frame.drawCols; col++) {
+        const src = mapLocalToGlobalCol(col, frame.drawCols);
+        const h = Math.max(0, Math.min(mid, Math.round((beatBars[src] || 0) * (mid / VIZ_ROWS))));
+        for (let i = 0; i < h; i++) {
+          const up = mid - 1 - i;
+          const down = mid + i;
+          const ch = i === h - 1 ? '█' : '▓';
+          out += goto(VIZ_START_ROW + up, frame.left + col) + BOLD + FG_CYAN + ch + RESET;
+          if (down < VIZ_ROWS) {
+            out += goto(VIZ_START_ROW + down, frame.left + col) + BOLD + FG_MAGENTA + ch + RESET;
+          }
+        }
+      }
+      return out;
+    };
+
+    const renderPulse = () => {
+      ensureVizWidth();
+      const frame = getVizFrame();
+      let out = '';
+      const centerRow = Math.floor(VIZ_ROWS / 2);
+      const centerCol = Math.floor(frame.drawCols / 2);
+      const lowBand = beatBars.slice(0, Math.max(2, Math.floor(VIZ_COLS * 0.18)));
+      const energy = lowBand.length ? lowBand.reduce((a, b) => a + b, 0) / (lowBand.length * VIZ_ROWS) : 0;
+      const t = Date.now() * 0.006;
+
+      for (let row = 0; row < VIZ_ROWS; row++) {
+        out += goto(VIZ_START_ROW + row, frame.left);
+        for (let col = 0; col < frame.drawCols; col++) {
+          const dx = (col - centerCol) / Math.max(1, frame.drawCols / 2);
+          const dy = (row - centerRow) / Math.max(1, VIZ_ROWS / 2);
+          const d = Math.sqrt(dx * dx + dy * dy);
+          const wave = Math.sin((d * 13.0) - t * (1.6 + energy * 2.1));
+          const glow = wave * 0.5 + 0.5;
+          const val = glow * (0.35 + energy * 1.2);
+          if (val > 0.82) out += BOLD + FG_WHITE + '█' + RESET;
+          else if (val > 0.64) out += BOLD + FG_CYAN + '▓' + RESET;
+          else if (val > 0.46) out += FG_CYAN + '▒' + RESET;
+          else if (val > 0.30) out += DIM + FG_BLUE + '░' + RESET;
+          else out += ' ';
+        }
+      }
+      return out;
+    };
+
     const renderFire = () => {
       ensureVizWidth();
       let out = '';
+      const frame = getVizFrame();
       const toGlyph = (v) => {
         if (v < 0.08) return DIM + FG_BLACK + ' ' + RESET;
         if (v < 0.18) return DIM + FG_RED + '░' + RESET;
@@ -475,11 +573,12 @@ export default class PlayerCommand {
       };
 
       for (let row = 0; row < VIZ_ROWS; row++) {
-        out += goto(VIZ_START_ROW + row, 1);
-        for (let col = 0; col < VIZ_COLS; col++) {
+        out += goto(VIZ_START_ROW + row, frame.left);
+        for (let col = 0; col < frame.drawCols; col++) {
+          const srcCol = mapLocalToGlobalCol(col, frame.drawCols);
           const y = row;
           const flicker = (Math.random() - 0.5) * 0.05;
-          const heat = Math.max(0, Math.min(1, fireCols[col][y] + flicker));
+          const heat = Math.max(0, Math.min(1, fireCols[srcCol][y] + flicker));
           out += toGlyph(heat);
         }
       }
@@ -488,15 +587,25 @@ export default class PlayerCommand {
 
     // Render the visualizer in-place (no clearScreen, just overwrite the rows)
     const renderViz = () => {
+      let out = '';
+      for (let vr = 0; vr < VIZ_ROWS; vr++) {
+        out += goto(VIZ_START_ROW + vr, 1) + ' '.repeat(VIZ_COLS);
+      }
+
       if (state.vizMode === 'oscilloscope') {
-        return renderOscilloscope();
+        return out + renderOscilloscope();
       }
       if (state.vizMode === 'fire') {
-        return renderFire();
+        return out + renderFire();
+      }
+      if (state.vizMode === 'mirror') {
+        return out + renderMirror();
+      }
+      if (state.vizMode === 'pulse') {
+        return out + renderPulse();
       }
       
       ensureVizWidth();
-      let out = '';
       const BLOCKS = ' ▁▂▃▄▅▆▇█';
       for (let vr = 0; vr < VIZ_ROWS; vr++) {
         out += goto(VIZ_START_ROW + vr, 1);
@@ -700,7 +809,11 @@ export default class PlayerCommand {
       const repeatOn  = state.repeat    ? BOLD + FG_YELLOW + '[REPEAT 1]' + RESET : DIM + FG_WHITE + '[repeat1]' + RESET;
       const repAllOn  = state.repeatAll ? BOLD + FG_GREEN  + '[REPEAT ALL]' + RESET : DIM + FG_WHITE + '[repeat∞]' + RESET;
       const turboOn   = state.vizTurbo  ? BOLD + FG_MAGENTA + '[TURBO]' + RESET : DIM + FG_WHITE + '[turbo]' + RESET;
-      const modeLabel = state.vizMode === 'bars' ? 'BARS' : (state.vizMode === 'oscilloscope' ? 'OSC' : 'FIRE');
+      const modeLabel = state.vizMode === 'bars'
+        ? 'BARS'
+        : (state.vizMode === 'oscilloscope'
+          ? 'OSC'
+          : (state.vizMode === 'fire' ? 'FIRE' : (state.vizMode === 'mirror' ? 'MIRROR' : 'PULSE')));
       const modeOn    = BOLD + FG_CYAN + `[${modeLabel}]` + RESET;
 
       let out = hideCursor() + clearScreen();
@@ -882,13 +995,19 @@ export default class PlayerCommand {
           renderAll();
           break;
 
-        case 'w': case 'W':
-          state.vizMode = state.vizMode === 'bars'
-            ? 'oscilloscope'
-            : (state.vizMode === 'oscilloscope' ? 'fire' : 'bars');
-          setStatus(`Visualizer mode: ${state.vizMode === 'bars' ? 'Bars' : (state.vizMode === 'oscilloscope' ? 'Oscilloscope' : 'Fire')}`);
+        case 'w': case 'W': {
+          const modeOrder = ['bars', 'oscilloscope', 'fire', 'mirror', 'pulse'];
+          const curr = Math.max(0, modeOrder.indexOf(state.vizMode));
+          state.vizMode = modeOrder[(curr + 1) % modeOrder.length];
+          const modeName = state.vizMode === 'bars'
+            ? 'Bars'
+            : (state.vizMode === 'oscilloscope'
+              ? 'Oscilloscope'
+              : (state.vizMode === 'fire' ? 'Fire' : (state.vizMode === 'mirror' ? 'Mirror' : 'Pulse')));
+          setStatus(`Visualizer mode: ${modeName}`);
           renderAll();
           break;
+        }
 
         default:
           // Number keys 0-9: jump to track
