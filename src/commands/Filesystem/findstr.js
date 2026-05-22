@@ -55,12 +55,13 @@ export default class FindStrCommand {
     let found = 0;
     for (const f of files) {
       const lines = window.fs.readFileSync(f, 'utf8').replaceAll('\r\n', '\n').split('\n');
-      lines.forEach((line, idx) => {
+      for (let idx = 0; idx < lines.length; idx++) {
+        const line = lines[idx];
         if (regex.test(line)) {
           term.writeln(`${path.basename(f)}:${idx + 1}: ${line}`);
           found++;
         }
-      });
+      }
     }
     if (!found) term.writeln('---------- NOT FOUND ----------');
   }

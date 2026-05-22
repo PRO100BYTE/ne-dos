@@ -17,6 +17,7 @@ export default class CalcCommand {
       return;
     }
     try {
+      // eslint-disable-next-line no-new-func
       const result = Function(`"use strict"; return (${expr});`)();
       term.writeln(String(result));
     } catch (e) {

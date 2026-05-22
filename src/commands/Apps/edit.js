@@ -8,14 +8,8 @@ const BOLD    = CSI + '1m';
 const DIM     = CSI + '2m';
 const REVERSE = CSI + '7m';
 const FG_WHITE   = CSI + '37m';
-const FG_CYAN    = CSI + '36m';
-const FG_YELLOW  = CSI + '33m';
-const FG_GREEN   = CSI + '32m';
-const FG_RED     = CSI + '31m';
-const FG_BLACK   = CSI + '30m';
 const FG_BLUE    = CSI + '34m';
 const BG_BLUE    = CSI + '44m';
-const BG_BLACK   = CSI + '40m';
 
 const goto        = (r, c) => `${CSI}${r};${c}H`;
 const clearScreen = ()     => `${CSI}2J${CSI}H`;

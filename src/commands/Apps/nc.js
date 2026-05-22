@@ -13,13 +13,10 @@ const REVERSE = CSI + '7m';
 const FG_WHITE  = CSI + '37m';
 const FG_CYAN   = CSI + '36m';
 const FG_YELLOW = CSI + '33m';
-const FG_RED    = CSI + '31m';
-const FG_GREEN  = CSI + '32m';
 const FG_BLACK  = CSI + '30m';
 const BG_BLUE   = CSI + '44m';
 const BG_CYAN   = CSI + '46m';
 const BG_BLACK  = CSI + '40m';
-const BG_RED    = CSI + '41m';
 
 const goto        = (r, c) => `${CSI}${r};${c}H`;
 const clearScreen = ()     => `${CSI}2J${CSI}H`;

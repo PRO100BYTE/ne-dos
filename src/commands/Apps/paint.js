@@ -1,4 +1,3 @@
-import path from "path-browserify";
 import { GetDriveRoot } from "../Filesystem/StorageManager";
 
 // ─── ANSI helpers ─────────────────────────────────────────────────────────────
@@ -16,11 +15,6 @@ const FG_MAGENTA = CSI + '35m';
 const FG_BLUE = CSI + '34m';
 const BG_BLACK = CSI + '40m';
 const BG_BLUE = CSI + '44m';
-const BG_CYAN = CSI + '46m';
-const BG_GREEN = CSI + '42m';
-const BG_RED = CSI + '41m';
-const BG_MAGENTA = CSI + '45m';
-const BG_YELLOW = CSI + '43m';
 const BG_WHITE = CSI + '47m';
 const REVERSE = CSI + '7m';
 

@@ -22,10 +22,9 @@
  *   STRING$, SPACE$, INSTR
  */
 
-import { PrepareInternal, FormatDirectory } from '../Filesystem/StorageManager';
+import { PrepareInternal } from '../Filesystem/StorageManager';
 
 const CSI = '\x1b[';
-const ESC = '\x1b';
 const clr = `${CSI}2J${CSI}H`;
 const bold = `${CSI}1m`;
 const cyan = `${CSI}36m`;
@@ -57,7 +56,7 @@ function tokenise(src) {
     // number
     if (/[\d.]/.test(src[i])) {
       let n = '';
-      while (i < src.length && /[\d.eE+\-]/.test(src[i])) {
+      while (i < src.length && /[\d.eE+-]/.test(src[i])) {
         if ((src[i] === '+' || src[i] === '-') && !/[eE]/.test(n.slice(-1))) break;
         n += src[i++];
       }
@@ -366,8 +365,8 @@ class BasicInterpreter {
       case '>': return a > b;
       case '<=': return a <= b;
       case '>=': return a >= b;
+      default: return false;
     }
-    return false;
   }
 
   _add(tokens, i) {
@@ -383,8 +382,13 @@ class BasicInterpreter {
 
   _mul(tokens, i) {
     let [a, ni] = this._unary(tokens, i);
-    while (ni < tokens.length && tokens[ni].type === 'OP' && ['*', '/', '\\', '^'].includes(tokens[ni].value) ||
-           (tokens[ni] && tokens[ni].type === 'WORD' && tokens[ni].value === 'MOD')) {
+    while (
+      ni < tokens.length &&
+      (
+        (tokens[ni].type === 'OP' && ['*', '/', '\\', '^'].includes(tokens[ni].value)) ||
+        (tokens[ni] && tokens[ni].type === 'WORD' && tokens[ni].value === 'MOD')
+      )
+    ) {
       const op = tokens[ni].value;
       const [b, ni2] = this._unary(tokens, ni + 1);
       if (op === '*') a = a * b;
@@ -510,7 +514,6 @@ export default class QBCommand {
 
       let inputBuf = '';
       let inputResolver = null;
-      let shellInputResolver = null;
       let inInput = false;
 
       function readLine(t) {
@@ -590,14 +593,14 @@ export default class QBCommand {
         if (data === '\x1b[A') { // Up
           if (histIdx < history.length - 1) {
             histIdx++;
-            term.write('\r' + CSI + 'K' + `${cyan}>${reset} ` + history[histIdx]);
+            term.write(`\r${CSI}K${cyan}>${reset} ${history[histIdx]}`);
             line = history[histIdx]; cursorPos = line.length;
           }
           return;
         }
         if (data === '\x1b[B') { // Down
-          if (histIdx > 0) { histIdx--; const s = history[histIdx]; term.write('\r' + CSI + 'K' + `${cyan}>${reset} ` + s); line = s; cursorPos = s.length; }
-          else { histIdx = -1; term.write('\r' + CSI + 'K' + `${cyan}>${reset} `); line = ''; cursorPos = 0; }
+          if (histIdx > 0) { histIdx--; const s = history[histIdx]; term.write(`\r${CSI}K${cyan}>${reset} ${s}`); line = s; cursorPos = s.length; }
+          else { histIdx = -1; term.write(`\r${CSI}K${cyan}>${reset} `); line = ''; cursorPos = 0; }
           return;
         }
 

@@ -1,4 +1,3 @@
-import path from "path-browserify";
 import { ResolveInCurrentDrive } from "./StorageManager";
 
 export default class ChangeDirectoryCommand {

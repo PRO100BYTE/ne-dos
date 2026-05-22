@@ -114,6 +114,7 @@ export default class JsCommand {
         const ctxVals = ctxKeys.map(k => ctx[k]);
         try {
           // Wrap code in async IIFE accessible to context
+          // eslint-disable-next-line no-new-func
           const fn = new Function(...ctxKeys, `"use strict"; return (async () => { ${code} })()`);
           await fn(...ctxVals);
         } catch (e) {
@@ -180,6 +181,7 @@ export default class JsCommand {
         const ctxKeys = Object.keys(ctx);
         const ctxVals = ctxKeys.map(k => ctx[k]);
         try {
+          // eslint-disable-next-line no-new-func
           const fn = new Function(...ctxKeys, `"use strict"; return (async () => { try { return (${fullCode}); } catch(_e1) { ${fullCode} } })()`);
           const result = await fn(...ctxVals);
           if (result !== undefined) {

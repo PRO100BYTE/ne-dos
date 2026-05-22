@@ -46,12 +46,12 @@ export default class FindCommand {
     let count = 0;
     for (const f of files) {
       const lines = window.fs.readFileSync(f, 'utf8').replaceAll('\r\n', '\n').split('\n');
-      lines.forEach((line) => {
+      for (const line of lines) {
         if (line.includes(needle)) {
           term.writeln(`${path.basename(f)}: ${line}`);
           count++;
         }
-      });
+      }
     }
     if (!count) term.writeln('---------- NOT FOUND ----------');
   }

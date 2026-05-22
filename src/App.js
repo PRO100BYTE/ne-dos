@@ -160,7 +160,6 @@ function App() {
     const FG_YELLOW = CSI + '33m';
     const FG_GREEN  = CSI + '32m';
     const FG_RED    = CSI + '31m';
-    const BG_BLACK  = CSI + '40m';
     const BG_BLUE   = CSI + '44m';
     const goto = (r, c) => `${CSI}${r};${c}H`;
     const clearScreen = () => `${CSI}2J${CSI}H`;
@@ -540,7 +539,6 @@ function App() {
 
       // Draw logo (centered, cyan)
       const COLS = term.cols;
-      const logoStart = Math.max(1, Math.floor((COLS - 84) / 2));
       let out = '';
       LOGO.forEach((line, i) => {
         out += goto(2 + i, 1) + BOLD + FG_CYAN + line.padEnd(COLS, ' ') + RESET;

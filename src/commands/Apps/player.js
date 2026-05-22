@@ -15,7 +15,6 @@ const FG_RED     = CSI + '31m';
 const FG_BLACK   = CSI + '30m';
 const FG_BLUE    = CSI + '34m';
 const FG_MAGENTA = CSI + '35m';
-const BG_BLACK   = CSI + '40m';
 const BG_BLUE    = CSI + '44m';
 const BG_CYAN    = CSI + '46m';
 
@@ -61,7 +60,6 @@ export default class PlayerCommand {
     // ── Layout constants ───────────────────────────────────────────────────────
     const VIZ_ROWS      = 11;                       // rows for the visualizer (+5 for extra punch)
     let VIZ_COLS        = Math.max(16, term.cols);  // full-width frequency bands (dynamic on resize)
-    const HDR_ROWS      = 3;                        // title header rows 1-3
     // Row 4: separator
     // Row 5: now playing
     // Row 6: file info
