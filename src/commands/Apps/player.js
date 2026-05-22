@@ -336,11 +336,9 @@ export default class PlayerCommand {
           : baseProfile;
 
         for (let i = 0; i < VIZ_COLS; i++) {
-          // Frequency mapping that keeps energy distributed across the whole width.
-          const from = i / VIZ_COLS;
-          const to = (i + 1) / VIZ_COLS;
-          const start = Math.max(0, Math.min(bins - 1, Math.floor(Math.pow(from, 1.28) * (bins - 1))));
-          const end = Math.max(start + 1, Math.min(bins, Math.floor(Math.pow(to, 1.28) * (bins - 1))));
+          // Linear spectrum mapping: lows (left), mids (center), highs (right).
+          const start = Math.max(0, Math.min(bins - 1, Math.floor((i / VIZ_COLS) * bins)));
+          const end = Math.max(start + 1, Math.min(bins, Math.floor(((i + 1) / VIZ_COLS) * bins)));
           let sum = 0;
           let flux = 0;
           for (let j = start; j < end; j++) sum += freqData[j];
@@ -352,8 +350,10 @@ export default class PlayerCommand {
           const avgNorm = Math.max(0, (avg - 8) / 240);
           const deltaNorm = Math.max(0, (delta - 4) / 230);
           const bandPos = i / VIZ_COLS;
-          const lowKick = 1.20 - Math.min(0.26, bandPos * 0.26);
-          const bandTilt = (0.98 + bandPos * 0.10) * lowKick;
+          const highBoost = 0.94 + bandPos * 0.58;
+          const midBoost = 1 + Math.exp(-Math.pow((bandPos - 0.50) / 0.23, 2)) * 0.12;
+          const lowTrim = 1 - Math.max(0, (0.24 - bandPos)) * 0.34;
+          const bandTilt = highBoost * midBoost * lowTrim;
           const raw = (avgNorm * 0.66 + deltaNorm * 0.34) * bandTilt * profile.sMul;
           const gated = Math.max(0, raw - profile.gate);
           const target = Math.pow(Math.min(1, gated), profile.gamma);
@@ -365,6 +365,31 @@ export default class PlayerCommand {
           } else {
             barEnvelope[i] += (target - barEnvelope[i]) * profile.fall;
           }
+        }
+
+        // Keep low/mid/high zones visually balanced so the spectrum does not collapse to the left.
+        const third = Math.max(1, Math.floor(VIZ_COLS / 3));
+        const avgRange = (from, to) => {
+          let sum = 0;
+          let count = 0;
+          for (let i = from; i < to; i++) {
+            sum += barEnvelope[i] || 0;
+            count += 1;
+          }
+          return count ? (sum / count) : 0;
+        };
+        const lowAvg = avgRange(0, third);
+        const midAvg = avgRange(third, Math.min(VIZ_COLS, third * 2));
+        const highAvg = avgRange(Math.min(VIZ_COLS, third * 2), VIZ_COLS);
+        const meanAvg = Math.max(0.0001, (lowAvg + midAvg + highAvg) / 3);
+
+        const lowComp = Math.max(0.78, Math.min(1.08, meanAvg / Math.max(lowAvg, 0.0001)));
+        const midComp = Math.max(0.90, Math.min(1.22, meanAvg / Math.max(midAvg, 0.0001)));
+        const highComp = Math.max(1.00, Math.min(1.36, meanAvg / Math.max(highAvg, 0.0001)));
+
+        for (let i = 0; i < VIZ_COLS; i++) {
+          const comp = i < third ? lowComp : (i < third * 2 ? midComp : highComp);
+          barEnvelope[i] = Math.max(0, Math.min(1, barEnvelope[i] * comp));
         }
 
         // Adaptive normalization by average energy (not peak), so the whole width breathes.
