@@ -45,7 +45,7 @@ export default class PlayerCommand {
     term.writeln("  a            Repeat all");
     term.writeln("  v            Visualizer sensitivity (Low/Normal/High)");
     term.writeln("  t            Visualizer turbo mode (extra punch)");
-    term.writeln("  w            Toggle visualizer mode (Bars / Oscilloscope / Fire / Mirror / Pulse)");
+    term.writeln("  w            Toggle visualizer mode (Bars / Oscilloscope / Fire / Mirror / Pulse / Rain / Wave)");
     term.writeln("  Esc          Quit player");
   }
 
@@ -132,7 +132,7 @@ export default class PlayerCommand {
       objectUrls:    {},
       vizSensitivity: 'Low',
       vizTurbo:      false,
-      vizMode:       'bars',  // 'bars' | 'oscilloscope' | 'fire' | 'mirror' | 'pulse'
+      vizMode:       'bars',  // 'bars' | 'oscilloscope' | 'fire' | 'mirror' | 'pulse' | 'rain' | 'wave'
     };
     let isExiting = false;
     let audioEndedHandler = null;
@@ -165,6 +165,7 @@ export default class PlayerCommand {
     let oscNormSmoothed = Array(VIZ_COLS).fill(0);
     let oscAmpSmooth = 0.42;
     let fireCols = Array(VIZ_COLS).fill(0).map(() => Array(VIZ_ROWS).fill(0));
+    let rainDrops = Array(VIZ_COLS).fill(0).map(() => ({ y: Math.random() * VIZ_ROWS, speed: 0.6 + Math.random() * 1.4, head: 0 }));
     let vizPeak = 0.08;
 
     const ensureVizWidth = () => {
@@ -175,11 +176,13 @@ export default class PlayerCommand {
         barEnvelope = barEnvelope.concat(Array(colsNow - VIZ_COLS).fill(0));
         oscNormSmoothed = oscNormSmoothed.concat(Array(colsNow - VIZ_COLS).fill(0));
         fireCols = fireCols.concat(Array(colsNow - VIZ_COLS).fill(0).map(() => Array(VIZ_ROWS).fill(0)));
+        rainDrops = rainDrops.concat(Array(colsNow - VIZ_COLS).fill(0).map(() => ({ y: Math.random() * VIZ_ROWS, speed: 0.6 + Math.random() * 1.4, head: 0 })));
       } else {
         beatBars = beatBars.slice(0, colsNow);
         barEnvelope = barEnvelope.slice(0, colsNow);
         oscNormSmoothed = oscNormSmoothed.slice(0, colsNow);
         fireCols = fireCols.slice(0, colsNow);
+        rainDrops = rainDrops.slice(0, colsNow);
       }
       VIZ_COLS = colsNow;
     };
@@ -194,6 +197,7 @@ export default class PlayerCommand {
       oscNormSmoothed = Array(VIZ_COLS).fill(0);
       oscAmpSmooth = 0.42;
       fireCols = Array(VIZ_COLS).fill(0).map(() => Array(VIZ_ROWS).fill(0));
+      rainDrops = Array(VIZ_COLS).fill(0).map(() => ({ y: Math.random() * VIZ_ROWS, speed: 0.6 + Math.random() * 1.4, head: 0 }));
       vizPeak = 0.08;
       if (audioCtx) {
         const ctx = audioCtx;
@@ -227,12 +231,7 @@ export default class PlayerCommand {
     };
 
     const getVizFrame = () => {
-      const compactModes = new Set(['oscilloscope', 'fire', 'mirror', 'pulse']);
-      const drawCols = compactModes.has(state.vizMode)
-        ? Math.max(32, Math.min(VIZ_COLS, 120))
-        : VIZ_COLS;
-      const left = 1 + Math.max(0, Math.floor((VIZ_COLS - drawCols) / 2));
-      return { left, drawCols };
+      return { left: 1, drawCols: VIZ_COLS };
     };
 
     const mapLocalToGlobalCol = (localCol, localCols) => {
@@ -284,6 +283,22 @@ export default class PlayerCommand {
         }
       }
       return false;
+    };
+
+    const updateRain = () => {
+      ensureVizWidth();
+      for (let x = 0; x < VIZ_COLS; x++) {
+        const d = rainDrops[x];
+        const energy = Math.max(0, Math.min(1, (beatBars[x] || 0) / VIZ_ROWS));
+        d.speed = 0.45 + energy * 1.8 + (state.vizTurbo ? 0.4 : 0);
+        d.y += d.speed * 0.28;
+        d.head = energy;
+        if (d.y >= VIZ_ROWS + 2) {
+          d.y = -Math.random() * 3;
+          d.speed = 0.5 + Math.random() * 1.6;
+          d.head = 0;
+        }
+      }
     };
 
     const animateBars = () => {
@@ -409,6 +424,7 @@ export default class PlayerCommand {
       }
 
       updateFire();
+      updateRain();
 
       term.write(hideCursor() + renderViz());
       animFrame = setTimeout(animateBars, state.vizTurbo ? 16 : 20);
@@ -584,6 +600,61 @@ export default class PlayerCommand {
       return out;
     };
 
+    const renderRain = () => {
+      ensureVizWidth();
+      const frame = getVizFrame();
+      let out = '';
+      for (let row = 0; row < VIZ_ROWS; row++) {
+        out += goto(VIZ_START_ROW + row, frame.left);
+        for (let col = 0; col < frame.drawCols; col++) {
+          const srcCol = mapLocalToGlobalCol(col, frame.drawCols);
+          const drop = rainDrops[srcCol];
+          const y = drop.y;
+          const headRow = Math.round(y);
+          const tail1 = headRow - 1;
+          const tail2 = headRow - 2;
+          if (row === headRow) {
+            const color = drop.head > 0.65 ? BOLD + FG_WHITE : BOLD + FG_CYAN;
+            out += color + '█' + RESET;
+          } else if (row === tail1) {
+            out += FG_CYAN + '▓' + RESET;
+          } else if (row === tail2) {
+            out += DIM + FG_BLUE + '▒' + RESET;
+          } else {
+            out += ' ';
+          }
+        }
+      }
+      return out;
+    };
+
+    const renderWave = () => {
+      ensureVizWidth();
+      const frame = getVizFrame();
+      let out = '';
+      const mid = Math.floor(VIZ_ROWS / 2);
+      const t = Date.now() * 0.0045;
+
+      for (let row = 0; row < VIZ_ROWS; row++) {
+        out += goto(VIZ_START_ROW + row, frame.left) + ' '.repeat(frame.drawCols);
+      }
+
+      for (let col = 0; col < frame.drawCols; col++) {
+        const src = mapLocalToGlobalCol(col, frame.drawCols);
+        const spectrum = Math.max(0, Math.min(1, (beatBars[src] || 0) / VIZ_ROWS));
+        const phase = t + col * 0.16;
+        const wave = Math.sin(phase) * 0.42 + Math.sin(phase * 0.5) * 0.22;
+        const row = Math.max(0, Math.min(VIZ_ROWS - 1, Math.round(mid - (wave + (spectrum - 0.5) * 0.9) * (VIZ_ROWS * 0.42))));
+        out += goto(VIZ_START_ROW + row, frame.left + col) + BOLD + FG_MAGENTA + '█' + RESET;
+        for (let y = row + 1; y < VIZ_ROWS; y++) {
+          const dist = y - row;
+          if (dist === 1) out += goto(VIZ_START_ROW + y, frame.left + col) + FG_CYAN + '▓' + RESET;
+          else if (dist <= 3) out += goto(VIZ_START_ROW + y, frame.left + col) + DIM + FG_BLUE + '▒' + RESET;
+        }
+      }
+      return out;
+    };
+
     const renderFire = () => {
       ensureVizWidth();
       let out = '';
@@ -628,6 +699,12 @@ export default class PlayerCommand {
       }
       if (state.vizMode === 'pulse') {
         return out + renderPulse();
+      }
+      if (state.vizMode === 'rain') {
+        return out + renderRain();
+      }
+      if (state.vizMode === 'wave') {
+        return out + renderWave();
       }
       
       ensureVizWidth();
@@ -838,7 +915,9 @@ export default class PlayerCommand {
         ? 'BARS'
         : (state.vizMode === 'oscilloscope'
           ? 'OSC'
-          : (state.vizMode === 'fire' ? 'FIRE' : (state.vizMode === 'mirror' ? 'MIRROR' : 'PULSE')));
+          : (state.vizMode === 'fire'
+            ? 'FIRE'
+            : (state.vizMode === 'mirror' ? 'MIRROR' : (state.vizMode === 'pulse' ? 'PULSE' : (state.vizMode === 'rain' ? 'RAIN' : 'WAVE')))));
       const modeOn    = BOLD + FG_CYAN + `[${modeLabel}]` + RESET;
 
       let out = hideCursor() + clearScreen();
@@ -1021,14 +1100,16 @@ export default class PlayerCommand {
           break;
 
         case 'w': case 'W': {
-          const modeOrder = ['bars', 'oscilloscope', 'fire', 'mirror', 'pulse'];
+          const modeOrder = ['bars', 'oscilloscope', 'fire', 'mirror', 'pulse', 'rain', 'wave'];
           const curr = Math.max(0, modeOrder.indexOf(state.vizMode));
           state.vizMode = modeOrder[(curr + 1) % modeOrder.length];
           const modeName = state.vizMode === 'bars'
             ? 'Bars'
             : (state.vizMode === 'oscilloscope'
               ? 'Oscilloscope'
-              : (state.vizMode === 'fire' ? 'Fire' : (state.vizMode === 'mirror' ? 'Mirror' : 'Pulse')));
+              : (state.vizMode === 'fire'
+                ? 'Fire'
+                : (state.vizMode === 'mirror' ? 'Mirror' : (state.vizMode === 'pulse' ? 'Pulse' : (state.vizMode === 'rain' ? 'Rain' : 'Wave')))));
           setStatus(`Visualizer mode: ${modeName}`);
           renderAll();
           break;
