@@ -44,6 +44,7 @@ export default class PlayerCommand {
     term.writeln("  a            Repeat all");
     term.writeln("  v            Visualizer sensitivity (Low/Normal/High)");
     term.writeln("  t            Visualizer turbo mode (extra punch)");
+    term.writeln("  w            Toggle visualizer mode (Bars / Oscilloscope / Fire)");
     term.writeln("  Esc          Quit player");
   }
 
@@ -130,6 +131,7 @@ export default class PlayerCommand {
       objectUrls:    {},
       vizSensitivity: 'Low',
       vizTurbo:      false,
+      vizMode:       'bars',  // 'bars' | 'oscilloscope' | 'fire'
     };
     let isExiting = false;
     let audioEndedHandler = null;
@@ -158,6 +160,10 @@ export default class PlayerCommand {
     let sourceNode = null;
     let freqData = null;
     let prevFreqData = null;
+    let oscData = null;  // Time domain data for oscilloscope
+    let oscNormSmoothed = Array(VIZ_COLS).fill(0);
+    let oscAmpSmooth = 0.42;
+    let fireCols = Array(VIZ_COLS).fill(0).map(() => Array(VIZ_ROWS).fill(0));
     let vizPeak = 0.08;
 
     const ensureVizWidth = () => {
@@ -166,9 +172,13 @@ export default class PlayerCommand {
       if (colsNow > VIZ_COLS) {
         beatBars = beatBars.concat(Array(colsNow - VIZ_COLS).fill(0));
         barEnvelope = barEnvelope.concat(Array(colsNow - VIZ_COLS).fill(0));
+        oscNormSmoothed = oscNormSmoothed.concat(Array(colsNow - VIZ_COLS).fill(0));
+        fireCols = fireCols.concat(Array(colsNow - VIZ_COLS).fill(0).map(() => Array(VIZ_ROWS).fill(0)));
       } else {
         beatBars = beatBars.slice(0, colsNow);
         barEnvelope = barEnvelope.slice(0, colsNow);
+        oscNormSmoothed = oscNormSmoothed.slice(0, colsNow);
+        fireCols = fireCols.slice(0, colsNow);
       }
       VIZ_COLS = colsNow;
     };
@@ -180,6 +190,9 @@ export default class PlayerCommand {
       analyser = null;
       freqData = null;
       prevFreqData = null;
+      oscNormSmoothed = Array(VIZ_COLS).fill(0);
+      oscAmpSmooth = 0.42;
+      fireCols = Array(VIZ_COLS).fill(0).map(() => Array(VIZ_ROWS).fill(0));
       vizPeak = 0.08;
       if (audioCtx) {
         const ctx = audioCtx;
@@ -196,12 +209,13 @@ export default class PlayerCommand {
         audioCtx = new Ctx();
         sourceNode = audioCtx.createMediaElementSource(audio);
         analyser = audioCtx.createAnalyser();
-        analyser.fftSize = 1024;
+        analyser.fftSize = 2048;
         analyser.smoothingTimeConstant = 0.56;
         sourceNode.connect(analyser);
         analyser.connect(audioCtx.destination);
         freqData = new Uint8Array(analyser.frequencyBinCount);
         prevFreqData = new Uint8Array(analyser.frequencyBinCount);
+        oscData = new Uint8Array(analyser.fftSize);
       } catch {
         cleanupAudioGraph();
       }
@@ -209,6 +223,32 @@ export default class PlayerCommand {
 
     const stopAnim = () => {
       if (animFrame !== null) { clearTimeout(animFrame); animFrame = null; }
+    };
+
+    const updateFire = () => {
+      ensureVizWidth();
+      const cooling = state.vizTurbo ? 0.05 : 0.07;
+      const diffusion = state.vizTurbo ? 0.78 : 0.70;
+      const sparkBase = state.vizTurbo ? 0.42 : 0.32;
+
+      // Cool and move heat upward.
+      for (let x = 0; x < VIZ_COLS; x++) {
+        for (let y = 0; y < VIZ_ROWS - 1; y++) {
+          const belowL = fireCols[Math.max(0, x - 1)][Math.min(VIZ_ROWS - 1, y + 1)];
+          const below = fireCols[x][Math.min(VIZ_ROWS - 1, y + 1)];
+          const belowR = fireCols[Math.min(VIZ_COLS - 1, x + 1)][Math.min(VIZ_ROWS - 1, y + 1)];
+          const mixed = (belowL + below * 2 + belowR) / 4;
+          fireCols[x][y] = Math.max(0, mixed * diffusion - cooling);
+        }
+      }
+
+      // Bottom sparks are driven by audio energy per column.
+      for (let x = 0; x < VIZ_COLS; x++) {
+        const barNorm = Math.max(0, Math.min(1, (beatBars[x] || 0) / VIZ_ROWS));
+        const randomKick = Math.random() * 0.22;
+        const spark = sparkBase + barNorm * 0.85 + randomKick;
+        fireCols[x][VIZ_ROWS - 1] = Math.max(0, Math.min(1, spark));
+      }
     };
 
     const animateBars = () => {
@@ -226,7 +266,7 @@ export default class PlayerCommand {
         // Stop timer only after bars have visually faded out.
         const stillVisible = barEnvelope.some(v => v > 0.01) || beatBars.some(v => v > 0.05);
         if (stillVisible) {
-          animFrame = setTimeout(animateBars, state.vizTurbo ? 24 : 33);
+          animFrame = setTimeout(animateBars, state.vizTurbo ? 16 : 20);
         } else {
           animFrame = null;
         }
@@ -235,6 +275,7 @@ export default class PlayerCommand {
 
       if (analyser && freqData) {
         analyser.getByteFrequencyData(freqData);
+         if (oscData) analyser.getByteTimeDomainData(oscData);
         const bins = freqData.length;
         let frameMean = 0;
         const profiles = {
@@ -303,12 +344,157 @@ export default class PlayerCommand {
         beatBars = beatBars.map(v => Math.max(0, v * 0.56));
       }
 
+      updateFire();
+
       term.write(hideCursor() + renderViz());
-      animFrame = setTimeout(animateBars, state.vizTurbo ? 24 : 33);
+      animFrame = setTimeout(animateBars, state.vizTurbo ? 16 : 20);
+    };
+
+    // Render oscilloscope (time-domain waveform)
+    const renderOscilloscope = () => {
+      ensureVizWidth();
+      let out = '';
+      if (!oscData || !state.playing) {
+        // Draw empty oscilloscope baseline
+        const centerRow = VIZ_START_ROW + Math.floor(VIZ_ROWS / 2);
+        for (let row = VIZ_START_ROW; row < VIZ_START_ROW + VIZ_ROWS; row++) {
+          out += goto(row, 1);
+          if (row === centerRow) {
+            out += DIM + FG_CYAN + '┄'.repeat(VIZ_COLS) + RESET;
+          } else {
+            out += ' '.repeat(VIZ_COLS);
+          }
+        }
+        return out;
+      }
+      
+      const centerRowOffset = Math.floor(VIZ_ROWS / 2);
+      const maxAmp = 128;
+
+      // Lock to a stable zero-crossing so waveform does not "jump" frame-to-frame.
+      const targetStart = Math.floor(oscData.length * 0.18);
+      const targetEnd = Math.floor(oscData.length * 0.82);
+      let zeroStart = targetStart;
+      for (let i = targetStart + 1; i < targetEnd; i++) {
+        const prev = oscData[i - 1] - 128;
+        const curr = oscData[i] - 128;
+        if (prev <= 0 && curr > 0) {
+          zeroStart = i;
+          break;
+        }
+      }
+      const visibleSamples = Math.max(VIZ_COLS * 2, Math.floor(oscData.length * 0.56));
+      const sampleStep = visibleSamples / Math.max(1, VIZ_COLS - 1);
+
+      // Clear visualizer area + draw center baseline
+      for (let row = 0; row < VIZ_ROWS; row++) {
+        out += goto(VIZ_START_ROW + row, 1);
+        if (row === centerRowOffset) {
+          out += DIM + FG_CYAN + '┄'.repeat(VIZ_COLS) + RESET;
+        } else {
+          out += ' '.repeat(VIZ_COLS);
+        }
+      }
+
+      // Map osc samples into terminal rows with temporal + spatial smoothing
+      const timeSmooth = state.vizTurbo ? 0.44 : 0.30;
+      const waveNorm = new Array(VIZ_COLS);
+
+      // Dynamic vertical normalization by peak amplitude for realistic response.
+      let framePeak = 0.05;
+      for (let i = 0; i < oscData.length; i++) {
+        const n = Math.abs((oscData[i] - 128) / maxAmp);
+        if (n > framePeak) framePeak = n;
+      }
+      oscAmpSmooth = oscAmpSmooth + (framePeak - oscAmpSmooth) * (state.vizTurbo ? 0.18 : 0.12);
+      const ampGain = 0.68 / Math.max(0.08, oscAmpSmooth);
+
+      for (let col = 0; col < VIZ_COLS; col++) {
+        const samplePos = zeroStart + col * sampleStep;
+        const i0 = Math.max(0, Math.min(oscData.length - 1, Math.floor(samplePos)));
+        const i1 = Math.max(0, Math.min(oscData.length - 1, i0 + 1));
+        const frac = samplePos - i0;
+        const v0 = (oscData[i0] - 128) / maxAmp;
+        const v1 = (oscData[i1] - 128) / maxAmp;
+        const interp = v0 + (v1 - v0) * frac;
+        const rawNorm = Math.max(-1, Math.min(1, interp * ampGain));
+        oscNormSmoothed[col] = oscNormSmoothed[col] + (rawNorm - oscNormSmoothed[col]) * timeSmooth;
+      }
+
+      for (let col = 0; col < VIZ_COLS; col++) {
+        const left = oscNormSmoothed[Math.max(0, col - 1)];
+        const curr = oscNormSmoothed[col];
+        const right = oscNormSmoothed[Math.min(VIZ_COLS - 1, col + 1)];
+        waveNorm[col] = (left + curr * 2 + right) / 4;
+      }
+
+      // Convert smoothed waveform to rows
+      const waveRows = new Array(VIZ_COLS);
+      for (let col = 0; col < VIZ_COLS; col++) {
+        const normalized = waveNorm[col];
+        const rowOffset = centerRowOffset - Math.round(normalized * (VIZ_ROWS / 2 - 1));
+        waveRows[col] = Math.max(0, Math.min(VIZ_ROWS - 1, rowOffset));
+      }
+
+      const drawLineChar = (rowOffset, col, ch) => {
+        out += goto(VIZ_START_ROW + rowOffset, col + 1);
+        out += BOLD + FG_GREEN + ch + RESET;
+      };
+
+      // Draw connected waveform instead of separate dots
+      drawLineChar(waveRows[0], 0, '─');
+      for (let col = 1; col < VIZ_COLS; col++) {
+        const prev = waveRows[col - 1];
+        const curr = waveRows[col];
+        if (curr === prev) {
+          drawLineChar(curr, col, '─');
+          continue;
+        }
+
+        const step = curr > prev ? 1 : -1;
+        let row = prev;
+        while (row !== curr) {
+          row += step;
+          drawLineChar(row, col, step > 0 ? '╲' : '╱');
+        }
+      }
+      
+      return out;
+    };
+
+    const renderFire = () => {
+      ensureVizWidth();
+      let out = '';
+      const toGlyph = (v) => {
+        if (v < 0.08) return DIM + FG_BLACK + ' ' + RESET;
+        if (v < 0.18) return DIM + FG_RED + '░' + RESET;
+        if (v < 0.34) return FG_RED + '▒' + RESET;
+        if (v < 0.54) return BOLD + FG_RED + '▓' + RESET;
+        if (v < 0.74) return BOLD + FG_YELLOW + '▓' + RESET;
+        return BOLD + FG_WHITE + '█' + RESET;
+      };
+
+      for (let row = 0; row < VIZ_ROWS; row++) {
+        out += goto(VIZ_START_ROW + row, 1);
+        for (let col = 0; col < VIZ_COLS; col++) {
+          const y = row;
+          const flicker = (Math.random() - 0.5) * 0.05;
+          const heat = Math.max(0, Math.min(1, fireCols[col][y] + flicker));
+          out += toGlyph(heat);
+        }
+      }
+      return out;
     };
 
     // Render the visualizer in-place (no clearScreen, just overwrite the rows)
     const renderViz = () => {
+      if (state.vizMode === 'oscilloscope') {
+        return renderOscilloscope();
+      }
+      if (state.vizMode === 'fire') {
+        return renderFire();
+      }
+      
       ensureVizWidth();
       let out = '';
       const BLOCKS = ' ▁▂▃▄▅▆▇█';
@@ -514,6 +700,8 @@ export default class PlayerCommand {
       const repeatOn  = state.repeat    ? BOLD + FG_YELLOW + '[REPEAT 1]' + RESET : DIM + FG_WHITE + '[repeat1]' + RESET;
       const repAllOn  = state.repeatAll ? BOLD + FG_GREEN  + '[REPEAT ALL]' + RESET : DIM + FG_WHITE + '[repeat∞]' + RESET;
       const turboOn   = state.vizTurbo  ? BOLD + FG_MAGENTA + '[TURBO]' + RESET : DIM + FG_WHITE + '[turbo]' + RESET;
+      const modeLabel = state.vizMode === 'bars' ? 'BARS' : (state.vizMode === 'oscilloscope' ? 'OSC' : 'FIRE');
+      const modeOn    = BOLD + FG_CYAN + `[${modeLabel}]` + RESET;
 
       let out = hideCursor() + clearScreen();
 
@@ -550,7 +738,7 @@ export default class PlayerCommand {
       // ── Volume + flags ────────────────────────────────────────────────────
       out += goto(9, 2) + FG_WHITE + 'Vol: ' + FG_GREEN + volStr + RESET +
              ' ' + FG_YELLOW + `${volPct}%` + RESET +
-              '   ' + shuffleOn + '  ' + repeatOn + '  ' + repAllOn + '  ' + turboOn;
+              '   ' + shuffleOn + '  ' + repeatOn + '  ' + repAllOn + '  ' + turboOn + '  ' + modeOn;
 
       // ── Separator ────────────────────────────────────────────────────────
       out += goto(10, 1) + DIM + FG_WHITE + '─'.repeat(COLS) + RESET;
@@ -597,7 +785,7 @@ export default class PlayerCommand {
       // ── Controls bar ──────────────────────────────────────────────────────
       out += goto(CTRL_ROW, 1) + BG_BLUE + FG_WHITE;
       const statusText = state.status ||
-        'Space:Play/Pause  ↑↓:Track  ←→:Seek  Shift+←→:Seek30s  +-:Vol  s:Shuffle  r:Rep1  a:Rep∞  v:Sens  t:Turbo  Esc:Quit';
+        'Space:Play/Pause  ↑↓:Track  ←→:Seek  Shift+←→:Seek30s  +-:Vol  s:Shuffle  r:Rep1  a:Rep∞  v:Sens  t:Turbo  w:VizMode  Esc:Quit';
       out += (' ' + statusText).padEnd(COLS, ' ') + RESET;
 
       term.write(out);
@@ -691,6 +879,14 @@ export default class PlayerCommand {
         case 't': case 'T':
           state.vizTurbo = !state.vizTurbo;
           setStatus(`Visualizer turbo: ${state.vizTurbo ? 'ON' : 'OFF'}`);
+          renderAll();
+          break;
+
+        case 'w': case 'W':
+          state.vizMode = state.vizMode === 'bars'
+            ? 'oscilloscope'
+            : (state.vizMode === 'oscilloscope' ? 'fire' : 'bars');
+          setStatus(`Visualizer mode: ${state.vizMode === 'bars' ? 'Bars' : (state.vizMode === 'oscilloscope' ? 'Oscilloscope' : 'Fire')}`);
           renderAll();
           break;
 
