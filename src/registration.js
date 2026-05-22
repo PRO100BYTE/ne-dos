@@ -17,6 +17,7 @@ import HttpdogCommand from "./commands/General/httpdog";
 import MakeDirectoryCommand from "./commands/Filesystem/mkdir";
 import CatCommand from "./commands/Filesystem/cat";
 import ECodeAPICommand from "./commands/ECodeAPI/ecode";
+import SculkCommand from "./commands/ECodeAPI/sculk";
 import GeoCommand from "./commands/Utility/geo";
 import RegisterCmdCommand from "./commands/System/registercommand";
 import CommandCOMCommand from "./commands/System/command";
@@ -69,6 +70,8 @@ import PathCommand from "./commands/System/path";
 import PromptCommand from "./commands/System/prompt";
 import DosKeyCommand from "./commands/System/doskey";
 import ModeCommand from "./commands/System/mode";
+import PassportCommand from "./commands/Utility/passport";
+import StoreCommand from "./commands/Utility/store";
 
 export const registerAllCommands = () => {
   let registeredCommands = {};
@@ -138,9 +141,12 @@ export const registerAllCommands = () => {
   registeredCommands['calendar'] = new CalendarCommand();
   registeredCommands['calc'] = new CalcCommand();
   registeredCommands['notes'] = new NotesCommand();
+  registeredCommands['passport'] = new PassportCommand();
+  registeredCommands['store'] = new StoreCommand();
 
   // ECodeAPI
   registeredCommands['ecode'] = new ECodeAPICommand();
+  registeredCommands['sculk'] = new SculkCommand();
 
   // TUI Applications
   registeredCommands['nc'] = new NcCommand();
