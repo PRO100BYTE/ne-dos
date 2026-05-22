@@ -168,6 +168,7 @@ export default class PlayerCommand {
     let oscAmpSmooth = 0.42;
     let fireCols = Array(VIZ_COLS).fill(0).map(() => Array(VIZ_ROWS).fill(0));
     let rainDrops = Array(VIZ_COLS).fill(0).map(() => ({ y: Math.random() * VIZ_ROWS, speed: 0.6 + Math.random() * 1.4, head: 0 }));
+    let mirrorPeaks = Array(VIZ_ROWS).fill(0);
     let spectrumUpperNorm = 0.82;
     let vizPeak = 0.08;
 
@@ -201,6 +202,7 @@ export default class PlayerCommand {
       oscAmpSmooth = 0.42;
       fireCols = Array(VIZ_COLS).fill(0).map(() => Array(VIZ_ROWS).fill(0));
       rainDrops = Array(VIZ_COLS).fill(0).map(() => ({ y: Math.random() * VIZ_ROWS, speed: 0.6 + Math.random() * 1.4, head: 0 }));
+      mirrorPeaks = Array(VIZ_ROWS).fill(0);
       spectrumUpperNorm = 0.82;
       vizPeak = 0.08;
       if (audioCtx) {
@@ -582,22 +584,51 @@ export default class PlayerCommand {
       ensureVizWidth();
       const frame = getVizFrame();
       let out = '';
-      const mid = Math.floor(VIZ_ROWS / 2);
+      const centerCol = Math.floor(frame.drawCols / 2);
+      const wingMax = Math.max(2, centerCol - 1);
 
+      // Clear and draw center axis.
       for (let row = 0; row < VIZ_ROWS; row++) {
         out += goto(VIZ_START_ROW + row, frame.left) + ' '.repeat(frame.drawCols);
+        out += goto(VIZ_START_ROW + row, frame.left + centerCol) + DIM + FG_WHITE + '│' + RESET;
       }
 
-      for (let col = 0; col < frame.drawCols; col++) {
-        const src = mapLocalToGlobalCol(col, frame.drawCols);
-        const h = Math.max(0, Math.min(mid, Math.round((beatBars[src] || 0) * (mid / VIZ_ROWS))));
-        for (let i = 0; i < h; i++) {
-          const up = mid - 1 - i;
-          const down = mid + i;
-          const ch = i === h - 1 ? '█' : '▓';
-          out += goto(VIZ_START_ROW + up, frame.left + col) + BOLD + FG_CYAN + ch + RESET;
-          if (down < VIZ_ROWS) {
-            out += goto(VIZ_START_ROW + down, frame.left + col) + BOLD + FG_MAGENTA + ch + RESET;
+      // Rows represent frequency layers; each layer mirrors left/right from center.
+      for (let row = 0; row < VIZ_ROWS; row++) {
+        const rowNorm = row / Math.max(1, VIZ_ROWS - 1);
+        const bandCenterNorm = 1 - rowNorm; // top = highs, bottom = lows
+        const bandWidthNorm = 0.045 + (1 - rowNorm) * 0.03;
+        const fromNorm = Math.max(0, bandCenterNorm - bandWidthNorm);
+        const toNorm = Math.min(1, bandCenterNorm + bandWidthNorm);
+        const fromIdx = Math.max(0, Math.min(VIZ_COLS - 1, Math.floor(fromNorm * VIZ_COLS)));
+        const toIdx = Math.max(fromIdx + 1, Math.min(VIZ_COLS, Math.ceil(toNorm * VIZ_COLS)));
+
+        let bandEnergy = 0;
+        let count = 0;
+        for (let i = fromIdx; i < toIdx; i++) {
+          bandEnergy += Math.max(0, Math.min(1, (beatBars[i] || 0) / VIZ_ROWS));
+          count += 1;
+        }
+        bandEnergy = count ? (bandEnergy / count) : 0;
+
+        // Smooth peak-hold per layer for a richer mirror look.
+        mirrorPeaks[row] = Math.max(bandEnergy, mirrorPeaks[row] * (state.playing ? 0.93 : 0.86));
+        const composite = Math.min(1, bandEnergy * 0.78 + mirrorPeaks[row] * 0.40);
+        const wing = Math.max(0, Math.min(wingMax, Math.round(composite * wingMax)));
+
+        let color = FG_GREEN;
+        if (row < Math.floor(VIZ_ROWS * 0.33)) color = FG_MAGENTA;
+        else if (row < Math.floor(VIZ_ROWS * 0.66)) color = FG_CYAN;
+
+        for (let d = 1; d <= wing; d++) {
+          const ch = d === wing ? '█' : (d > wing * 0.7 ? '▓' : (d > wing * 0.4 ? '▒' : '░'));
+          const leftX = centerCol - d;
+          const rightX = centerCol + d;
+          if (leftX >= 0) {
+            out += goto(VIZ_START_ROW + row, frame.left + leftX) + BOLD + color + ch + RESET;
+          }
+          if (rightX < frame.drawCols) {
+            out += goto(VIZ_START_ROW + row, frame.left + rightX) + BOLD + color + ch + RESET;
           }
         }
       }
