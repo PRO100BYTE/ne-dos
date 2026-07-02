@@ -1,5 +1,5 @@
 import path from "path-browserify";
-import {PrepareInternal} from "./StorageManager";
+import { ResolveInCurrentDrive } from "./StorageManager";
 
 export default class DeleteDirectoryCommand {
   execute(term, params, directory, setDirectory) {
@@ -9,7 +9,7 @@ export default class DeleteDirectoryCommand {
       term.writeln("Invalid path");
       return;
     }
-    const target = path.resolve(directory, PrepareInternal(context));
+    const target = ResolveInCurrentDrive(directory, context);
     if (!window.fs.existsSync(target)) {
       term.writeln("No such file");
       return;
